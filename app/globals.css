@@ -1,19 +1,18 @@
 :root {
-  --bg: #f4efe6;
-  --panel: rgba(255, 252, 247, 0.92);
-  --panel-strong: #fff9f1;
-  --line: rgba(68, 49, 20, 0.12);
-  --text: #20170f;
-  --muted: #655949;
-  --accent: #cb5f2d;
-  --accent-soft: rgba(203, 95, 45, 0.12);
-  --good: #246b4c;
-  --good-soft: rgba(36, 107, 76, 0.12);
-  --warn: #a66a12;
-  --warn-soft: rgba(166, 106, 18, 0.13);
-  --risk: #b03939;
-  --risk-soft: rgba(176, 57, 57, 0.12);
-  --shadow: 0 24px 70px rgba(71, 48, 18, 0.11);
+  --bg: #0e1318;
+  --bg-soft: #131a20;
+  --panel: #171f27;
+  --panel-2: #1d2731;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --text: #eef3f7;
+  --muted: #97a5b4;
+  --accent: #d5b278;
+  --accent-soft: rgba(213, 178, 120, 0.12);
+  --good: #4db087;
+  --warn: #d0a04a;
+  --risk: #d06a6a;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
 }
 
 * {
@@ -26,12 +25,17 @@ html {
 
 body {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family:
+    "IBM Plex Sans",
+    "Segoe UI",
+    Helvetica,
+    Arial,
+    sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(203, 95, 45, 0.15), transparent 26%),
-    radial-gradient(circle at right 20%, rgba(36, 107, 76, 0.12), transparent 24%),
-    linear-gradient(180deg, #f8f1e7 0%, #f0e7da 100%);
+    radial-gradient(circle at top left, rgba(213, 178, 120, 0.08), transparent 22%),
+    radial-gradient(circle at 85% 10%, rgba(77, 176, 135, 0.07), transparent 18%),
+    linear-gradient(180deg, #0b1015 0%, #111920 100%);
   min-height: 100vh;
 }
 
@@ -42,368 +46,312 @@ textarea {
   font: inherit;
 }
 
-.shell {
-  width: min(1320px, calc(100% - 32px));
+button {
+  color: inherit;
+}
+
+textarea,
+input,
+select {
+  color: var(--text);
+}
+
+.execShell {
+  width: min(1600px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 32px 0 56px;
+  padding: 18px 0 28px;
 }
 
-.hero,
-.tabBar,
-.toolbar,
-.metricsGrid,
-.contentGrid,
-.bottomGrid {
-  margin-bottom: 20px;
+.commandBar,
+.statusStrip,
+.controlRail,
+.workbench {
+  margin-bottom: 14px;
 }
 
-.hero {
-  display: grid;
-  grid-template-columns: 1.8fr 0.9fr;
-  gap: 20px;
-  align-items: end;
+.commandBar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-end;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  box-shadow: var(--shadow);
 }
 
-.hero h1,
-.sectionHeader h2 {
+.commandIdentity h1,
+.panelHeader h2 {
   margin: 0;
+  letter-spacing: -0.035em;
+}
+
+.commandIdentity h1 {
+  font-size: clamp(2rem, 3.5vw, 3.2rem);
   line-height: 0.96;
-  letter-spacing: -0.04em;
 }
 
-.hero h1 {
-  font-size: clamp(2.8rem, 6vw, 5.8rem);
-  max-width: 11ch;
+.commandEyebrow,
+.panelEyebrow,
+.field label,
+.decisionStat span,
+.statusTile span,
+.smallMeta {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent);
 }
 
-.lead,
-.muted,
-.heroCard p,
-.metricCard p,
-.actionCard p,
-.leaderRow span,
-.riskCell span,
-.profileMeta span,
-.scorePill span {
+.commandSubline,
+.statusTile p,
+.smallMeta,
+.rosterRow span,
+.queueItem span,
+.denseRow span,
+.decisionStat span,
+.scorePill span,
+.listPanel li,
+.textFieldGroup textarea::placeholder {
   color: var(--muted);
 }
 
-.lead {
-  max-width: 62ch;
-  font-size: 1.08rem;
-  line-height: 1.6;
-  margin-top: 16px;
+.commandSubline {
+  margin: 10px 0 0;
+  max-width: 72ch;
+  line-height: 1.5;
 }
 
-.heroActions {
+.commandActions {
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .primaryButton,
 .ghostButton,
 .tabButton,
-.miniChip {
+.miniChip,
+.rosterRow {
   border: none;
   cursor: pointer;
-  transition: transform 180ms ease, opacity 180ms ease, background 180ms ease;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    opacity 160ms ease;
 }
 
 .primaryButton,
 .ghostButton {
-  height: 46px;
-  padding: 0 18px;
-  border-radius: 999px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
 }
 
 .primaryButton {
-  background: #2a1a12;
-  color: #fff7ef;
+  background: var(--accent);
+  color: #1a1712;
+  font-weight: 700;
 }
 
 .ghostButton {
-  background: rgba(255, 249, 241, 0.7);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--line);
-  color: var(--text);
-}
-
-.ghostButton.small {
-  height: 40px;
-  padding: 0 14px;
 }
 
 .primaryButton:hover,
 .ghostButton:hover,
 .tabButton:hover,
-.miniChip:hover {
+.miniChip:hover,
+.rosterRow:hover {
   transform: translateY(-1px);
 }
 
-.eyebrow {
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.76rem;
-  color: var(--accent);
-  margin: 0 0 12px;
+.statusStrip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
 }
 
+.statusTile,
 .card {
-  background: var(--panel);
   border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01));
   box-shadow: var(--shadow);
-  border-radius: 28px;
-  backdrop-filter: blur(12px);
 }
 
-.heroCard {
-  padding: 24px;
-  background: linear-gradient(135deg, #21160f 0%, #4d2c1a 100%);
-  color: #fff9f3;
-  border-radius: 28px;
-  min-height: 220px;
+.statusTile {
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.statusTile strong {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.statusTile p {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.controlRail {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.controlCluster {
+  display: flex;
+  gap: 12px;
+}
+
+.field {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  box-shadow: var(--shadow);
+  gap: 7px;
+  min-width: 190px;
 }
 
-.heroCard span,
-.heroCard p {
-  color: rgba(255, 249, 243, 0.72);
-}
-
-.heroCard strong {
-  font-size: 4rem;
-  line-height: 0.95;
-  margin: 8px 0 10px;
-}
-
-.toolbar {
-  display: grid;
-  grid-template-columns: 1fr 1fr repeat(3, 0.7fr) auto;
-  gap: 14px;
-  padding: 18px;
+.field select,
+.textFieldGroup input,
+.textFieldGroup textarea {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  border-radius: 12px;
+  padding: 12px 14px;
 }
 
 .tabBar {
   display: flex;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .tabButton {
-  padding: 12px 18px;
-  border-radius: 999px;
-  background: rgba(255, 249, 241, 0.65);
+  border-radius: 12px;
+  padding: 10px 14px;
   border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .tabButton.active {
-  background: #2a1a12;
-  color: #fff7ef;
+  background: var(--accent-soft);
+  border-color: rgba(213, 178, 120, 0.34);
 }
 
-.field,
-.summaryBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.field label,
-.summaryBlock span,
-.profileMeta span {
-  font-size: 0.84rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.field select {
-  height: 48px;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  padding: 0 14px;
-  background: var(--panel-strong);
-}
-
-.summaryBlock {
-  justify-content: center;
-  padding: 0 18px;
-  border-left: 1px solid var(--line);
-}
-
-.toolbarActions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.summaryBlock strong {
-  font-size: 1.9rem;
-}
-
-.metricsGrid,
-.bottomGrid {
+.workbench {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  grid-template-columns: 340px minmax(0, 1fr) 340px;
+  gap: 14px;
+  align-items: start;
 }
 
-.metricCard,
-.profileCard,
-.tableCard,
-.bottomGrid .card,
-.matrixCard,
-.actionTableCard {
-  padding: 22px;
-}
-
-.metricCard strong {
-  display: block;
-  font-size: 3rem;
-  margin: 8px 0;
-}
-
-.contentGrid {
-  display: grid;
-  grid-template-columns: 0.95fr 1.05fr;
-  gap: 16px;
-}
-
-.sectionHeader {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 18px;
-}
-
-.sectionHeader h2 {
-  font-size: clamp(1.8rem, 3vw, 2.8rem);
-}
-
-.leaderList {
-  display: grid;
-  gap: 12px;
-}
-
-.leaderRow {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
+.card {
+  border-radius: 18px;
   padding: 18px;
-  border-radius: 20px;
-  border: 1px solid transparent;
-  background: #fffaf3;
-  text-align: left;
-  cursor: pointer;
-  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
 }
 
-.leaderRow:hover,
-.leaderRow.selected {
-  transform: translateY(-2px);
-  border-color: var(--line);
-}
-
-.leaderRow strong,
-.profileCard strong,
-.actionCard strong,
-.riskCell strong,
-.scorePill strong,
-.summaryBlock strong {
-  display: block;
-}
-
-.rowMeta {
-  text-align: right;
-}
-
-.tone-excellent {
-  background: linear-gradient(135deg, rgba(36, 107, 76, 0.1), rgba(255, 250, 243, 0.95));
-}
-
-.tone-strong {
-  background: linear-gradient(135deg, rgba(203, 95, 45, 0.11), rgba(255, 250, 243, 0.95));
-}
-
-.tone-watch {
-  background: linear-gradient(135deg, rgba(166, 106, 18, 0.12), rgba(255, 250, 243, 0.95));
-}
-
-.tone-risk {
-  background: linear-gradient(135deg, rgba(176, 57, 57, 0.11), rgba(255, 250, 243, 0.95));
-}
-
-.badge {
-  padding: 12px 16px;
-  border-radius: 999px;
-  font-size: 0.95rem;
-}
-
-.profileMeta,
-.radarGrid,
-.twoCol,
-.riskMatrix,
-.actionBoard,
-.editorGrid,
-.actionTable,
-.nineBox {
-  display: grid;
-  gap: 12px;
-}
-
-.profileMeta {
-  grid-template-columns: repeat(4, 1fr);
-  margin-bottom: 18px;
-}
-
-.radarGrid {
-  grid-template-columns: repeat(2, 1fr);
-  margin-bottom: 18px;
-}
-
-.editorGrid {
-  grid-template-columns: repeat(2, 1fr);
-  margin-bottom: 18px;
-}
-
-.textFieldGroup {
+.panelHeader {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
   margin-bottom: 16px;
 }
 
-.textFieldGroup label {
-  font-size: 0.84rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+.panelHeader h2 {
+  font-size: 1.55rem;
 }
 
-.textFieldGroup input,
-.textFieldGroup textarea {
+.rosterList,
+.decisionQueue,
+.denseTable {
+  display: grid;
+  gap: 10px;
+}
+
+.rosterRow {
   width: 100%;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  background: #fffaf3;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   padding: 14px;
-  color: var(--text);
+  border-radius: 14px;
+  background: var(--panel-2);
+  border: 1px solid transparent;
+}
+
+.rosterRow.selected {
+  border-color: rgba(213, 178, 120, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(213, 178, 120, 0.12);
+}
+
+.rosterMeta {
+  text-align: right;
+}
+
+.centerColumn {
+  display: grid;
+  gap: 14px;
+}
+
+.decisionStrip,
+.signalGrid,
+.comparisonGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.decisionStrip {
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 14px;
+}
+
+.decisionStat {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+
+.decisionStat strong,
+.scorePill strong,
+.queueItem strong,
+.listPanel h3,
+.denseRow strong {
+  display: block;
+}
+
+.editorGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.signalGrid {
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 14px;
 }
 
 .scorePill {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 14px;
-  background: #fffaf3;
 }
 
 .scoreBar {
-  height: 8px;
-  background: rgba(32, 23, 15, 0.08);
+  height: 7px;
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 999px;
   overflow: hidden;
   margin-top: 10px;
@@ -412,167 +360,155 @@ textarea {
 .scoreBar div {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), #e0a154);
+  background: linear-gradient(90deg, var(--accent), #f3dfaa);
 }
 
-.twoCol {
-  grid-template-columns: repeat(2, 1fr);
+.notesGrid {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.textFieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.comparisonGrid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.listPanel {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.listPanel h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
 }
 
 ul {
-  margin: 12px 0 0;
+  margin: 0;
   padding-left: 18px;
 }
 
 li {
   margin-bottom: 8px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
-.riskMatrix {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.riskCell,
-.actionCard {
+.queueItem,
+.denseRow {
+  border-radius: 14px;
+  background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 20px;
-  padding: 16px;
-  background: #fffaf3;
+  padding: 14px;
 }
 
-.riskCell {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.riskDot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--warn);
-  margin-top: 6px;
-  flex-shrink: 0;
-}
-
-.riskDot.isHigh {
-  background: var(--risk);
-  box-shadow: 0 0 0 6px rgba(176, 57, 57, 0.12);
-}
-
-.actionBoard {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.actionTable {
+.denseRow {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(4, 1fr);
   gap: 10px;
 }
 
-.actionRow {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
-  gap: 12px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 16px;
-  background: #fffaf3;
-}
-
-.actionRow span {
-  color: var(--muted);
-  font-size: 0.88rem;
-}
-
-.matrixCard {
-  margin-bottom: 20px;
-}
-
 .nineBox {
+  display: grid;
   grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
 }
 
 .nineCell {
   min-height: 132px;
-  border-radius: 20px;
+  padding: 12px;
+  border-radius: 14px;
   border: 1px solid var(--line);
-  background: #fffaf3;
-  padding: 14px;
+  background: var(--panel-2);
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .cellLabel {
-  font-size: 0.76rem;
-  color: var(--muted);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  color: var(--muted);
 }
 
 .nineCell em {
-  color: var(--muted);
   font-style: normal;
+  color: var(--muted);
 }
 
 .miniChip {
   align-self: flex-start;
   border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--text);
   padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.07);
 }
 
-.actionCard span {
-  color: var(--accent);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+.badge {
+  border-radius: 999px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
 }
 
-@media (max-width: 1100px) {
-  .hero,
-  .contentGrid,
-  .bottomGrid,
-  .metricsGrid {
+.tone-excellent {
+  background: linear-gradient(180deg, rgba(77, 176, 135, 0.14), rgba(255, 255, 255, 0.03));
+}
+
+.tone-strong {
+  background: linear-gradient(180deg, rgba(213, 178, 120, 0.16), rgba(255, 255, 255, 0.03));
+}
+
+.tone-watch {
+  background: linear-gradient(180deg, rgba(208, 160, 74, 0.16), rgba(255, 255, 255, 0.03));
+}
+
+.tone-risk {
+  background: linear-gradient(180deg, rgba(208, 106, 106, 0.16), rgba(255, 255, 255, 0.03));
+}
+
+@media (max-width: 1280px) {
+  .workbench {
     grid-template-columns: 1fr;
   }
 
-  .toolbar {
+  .statusStrip {
     grid-template-columns: repeat(2, 1fr);
   }
-
-  .summaryBlock {
-    border-left: none;
-    border-top: 1px solid var(--line);
-    padding: 12px 0 0;
-  }
 }
 
-@media (max-width: 720px) {
-  .shell {
-    width: min(100% - 20px, 1320px);
-    padding-top: 20px;
+@media (max-width: 920px) {
+  .commandBar,
+  .controlRail {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .toolbar,
-  .profileMeta,
-  .radarGrid,
+  .controlCluster,
+  .tabBar {
+    width: 100%;
+  }
+
+  .field {
+    min-width: 0;
+  }
+
+  .decisionStrip,
   .editorGrid,
-  .twoCol,
-  .riskMatrix,
-  .actionBoard,
-  .nineBox,
-  .actionRow {
+  .signalGrid,
+  .comparisonGrid,
+  .denseRow,
+  .nineBox {
     grid-template-columns: 1fr;
   }
 
-  .heroCard strong,
-  .metricCard strong {
-    font-size: 2.6rem;
-  }
-
-  .sectionHeader {
-    flex-direction: column;
+  .statusStrip {
+    grid-template-columns: 1fr;
   }
 }

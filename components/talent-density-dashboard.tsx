@@ -23,7 +23,7 @@ import {
 } from "@/lib/talent-density-data";
 
 const STORAGE_KEY = "talent-density-tool.v2";
-const tabs = ["Översikt", "Kalibrering", "9-box", "Succession", "Actions"] as const;
+const tabs = ["Kalibreringsrum", "9-box", "Succession", "Actions"] as const;
 
 function cn(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(" ");
@@ -58,19 +58,21 @@ function sortLeaders(data: LeaderRecord[], sortBy: string) {
 
 export function TalentDensityDashboard() {
   const [leaders, setLeaders] = useState<LeaderRecord[]>(() => createInitialLeaders());
-  const [tab, setTab] = useState<(typeof tabs)[number]>("Översikt");
+  const [tab, setTab] = useState<(typeof tabs)[number]>("Kalibreringsrum");
   const [selectedArea, setSelectedArea] = useState("Alla");
   const [sortBy, setSortBy] = useState("density");
   const [selectedLeaderId, setSelectedLeaderId] = useState(createInitialLeaders()[0]?.id ?? "");
+  const [sessionNote, setSessionNote] = useState("");
 
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as LeaderRecord[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setLeaders(parsed);
-          setSelectedLeaderId(parsed[0]?.id ?? "");
+        const parsed = JSON.parse(raw) as { leaders: LeaderRecord[]; sessionNote?: string };
+        if (Array.isArray(parsed.leaders) && parsed.leaders.length > 0) {
+          setLeaders(parsed.leaders);
+          setSelectedLeaderId(parsed.leaders[0]?.id ?? "");
+          setSessionNote(parsed.sessionNote ?? "");
         }
       }
     } catch {
@@ -79,8 +81,8 @@ export function TalentDensityDashboard() {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(leaders));
-  }, [leaders]);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ leaders, sessionNote }));
+  }, [leaders, sessionNote]);
 
   const areas = useMemo(
     () => ["Alla", ...Array.from(new Set(leaders.map((leader) => leader.area)))],
@@ -93,20 +95,11 @@ export function TalentDensityDashboard() {
         ? leaders
         : leaders.filter((leader) => leader.area === selectedArea);
     return sortLeaders(subset, sortBy);
-  }, [selectedArea, sortBy]);
+  }, [leaders, selectedArea, sortBy]);
 
   const metrics = useMemo(() => portfolioMetrics(filteredLeaders), [filteredLeaders]);
   const selectedLeader =
     filteredLeaders.find((leader) => leader.id === selectedLeaderId) ?? filteredLeaders[0];
-
-  const actionBoard = filteredLeaders
-    .filter(
-      (leader) =>
-        leader.retentionRisk === "Hög" ||
-        leader.replacementReadiness === "Ingen ersättare" ||
-        calculateDensityScore(leader) < 72
-    )
-    .slice(0, 4);
 
   const nineBoxGroups = useMemo(() => {
     const groups = new Map<string, LeaderRecord[]>();
@@ -135,7 +128,14 @@ export function TalentDensityDashboard() {
         calculateDensityScore(a) - calculateDensityScore(b)
       );
     })
-    .slice(0, 6);
+    .slice(0, 8);
+
+  const meetingQueue = filteredLeaders.filter(
+    (leader) =>
+      leader.calibrationPriority === "Nu" ||
+      leader.retentionRisk === "Hög" ||
+      leader.replacementReadiness === "Ingen ersättare"
+  );
 
   function updateLeader(id: string, patch: Partial<LeaderRecord>) {
     setLeaders((current) =>
@@ -155,6 +155,7 @@ export function TalentDensityDashboard() {
     const next = createInitialLeaders();
     setLeaders(next);
     setSelectedLeaderId(next[0]?.id ?? "");
+    setSessionNote("");
     window.localStorage.removeItem(STORAGE_KEY);
   }
 
@@ -169,226 +170,133 @@ export function TalentDensityDashboard() {
   }
 
   return (
-    <main className="shell">
-      <section className="hero">
-        <div>
-          <p className="eyebrow">Talent Density OS</p>
-          <h1>Ledningsverktyg för att kalibrera, prioritera och höja talent density.</h1>
-          <p className="lead">
-            Byggt för ledningsgrupper som vill se mer än performance: bench strength,
-            flight risk, värdepassning, succession och konkreta åtgärder i samma vy.
+    <main className="execShell">
+      <section className="commandBar">
+        <div className="commandIdentity">
+          <p className="commandEyebrow">Executive Calibration Console</p>
+          <h1>Talent Density</h1>
+          <p className="commandSubline">
+            Ett kalibreringsrum för ledningsgrupper som måste fatta svåra people-beslut med
+            tempo, disciplin och tydlig ägarsättning.
           </p>
-          <div className="heroActions">
-            <button className="primaryButton" onClick={() => setTab("Kalibrering")}>
-              Öppna kalibrering
-            </button>
-            <button className="ghostButton" onClick={downloadSnapshot}>
-              Exportera snapshot
-            </button>
-          </div>
         </div>
-        <div className="heroCard">
-          <span>Portföljstatus</span>
-          <strong>{metrics.averageDensity}/100</strong>
-          <p>Genomsnittlig talent density i vald ledningsportfölj.</p>
-        </div>
-      </section>
 
-      <section className="tabBar">
-        {tabs.map((item) => (
-          <button
-            key={item}
-            className={cn("tabButton", item === tab && "active")}
-            onClick={() => setTab(item)}
-          >
-            {item}
+        <div className="commandActions">
+          <button className="primaryButton" onClick={downloadSnapshot}>
+            Exportera board pack
           </button>
-        ))}
+          <button className="ghostButton" onClick={resetLeaders}>
+            Återställ session
+          </button>
+        </div>
       </section>
 
-      <section className="toolbar card">
-        <div className="field">
-          <label htmlFor="area">Område</label>
-          <select
-            id="area"
+      <section className="statusStrip">
+        <StatusTile label="Portföljscore" value={`${metrics.averageDensity}/100`} detail="Samlad talent density" />
+        <StatusTile label="Akuta luckor" value={String(metrics.noSuccessorCount)} detail="Roller utan ersättare" />
+        <StatusTile label="Hög flight risk" value={String(metrics.highRiskCount)} detail="Måste adresseras i rummet" />
+        <StatusTile
+          label="Bench coverage"
+          value={`${Math.round(
+            (filteredLeaders.filter((leader) => leader.successors > 0).length /
+              filteredLeaders.length) *
+              100
+          )}%`}
+          detail="Roller med minst en kandidat"
+        />
+        <StatusTile label="Redo nu" value={String(metrics.readyNowCount)} detail="Direkt succession" />
+      </section>
+
+      <section className="controlRail">
+        <div className="controlCluster">
+          <SelectField
+            label="Portfölj"
             value={selectedArea}
-            onChange={(event) => setSelectedArea(event.target.value)}
-          >
-            {areas.map((area) => (
-              <option key={area} value={area}>
-                {area}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="sort">Sortera</label>
-          <select
-            id="sort"
+            options={areas.map((value) => ({ value, label: value }))}
+            onChange={setSelectedArea}
+          />
+          <SelectField
+            label="Sortering"
             value={sortBy}
-            onChange={(event) => setSortBy(event.target.value)}
-          >
-            <option value="density">Talent density</option>
-            <option value="risk">Retention risk</option>
-            <option value="succession">Svagast succession först</option>
-          </select>
+            options={[
+              { value: "density", label: "Talent density" },
+              { value: "risk", label: "Retention risk" },
+              { value: "succession", label: "Svagast succession först" }
+            ]}
+            onChange={setSortBy}
+          />
         </div>
-        <div className="summaryBlock">
-          <span>Redo nu</span>
-          <strong>{metrics.readyNowCount}</strong>
-        </div>
-        <div className="summaryBlock">
-          <span>Ingen ersättare</span>
-          <strong>{metrics.noSuccessorCount}</strong>
-        </div>
-        <div className="summaryBlock">
-          <span>Hög retention risk</span>
-          <strong>{metrics.highRiskCount}</strong>
-        </div>
-        <div className="toolbarActions">
-          <button className="ghostButton small" onClick={resetLeaders}>
-            Återställ
-          </button>
+
+        <div className="tabBar">
+          {tabs.map((item) => (
+            <button
+              key={item}
+              className={cn("tabButton", item === tab && "active")}
+              onClick={() => setTab(item)}
+            >
+              {item}
+            </button>
+          ))}
         </div>
       </section>
 
-      <section className="metricsGrid">
-        <article className="card metricCard">
-          <span>Talent density</span>
-          <strong>{metrics.averageDensity}</strong>
-          <p>Samlad score viktad på performance, potential, värdepassning, impact och bench.</p>
-        </article>
-        <article className="card metricCard">
-          <span>Bench coverage</span>
-          <strong>
-            {Math.round(
-              (filteredLeaders.filter((leader) => leader.successors > 0).length /
-                filteredLeaders.length) *
-                100
-            )}
-            %
-          </strong>
-          <p>Andel roller där det finns minst en intern ersättarkandidat.</p>
-        </article>
-        <article className="card metricCard">
-          <span>Värdepassning</span>
-          <strong>
-            {Math.round(
-              filteredLeaders.reduce((sum, leader) => sum + leader.valuesFit, 0) /
-                filteredLeaders.length
-            )}
-          </strong>
-          <p>Ger signal om kulturfriktion innan den syns fullt ut i resultatet.</p>
-        </article>
-        <article className="card metricCard">
-          <span>Operativ sårbarhet</span>
-          <strong>
-            {Math.round(
-              filteredLeaders.reduce(
-                (sum, leader) =>
-                  sum +
-                  (leader.businessCriticality -
-                    (leader.replacementReadiness === "Redo nu"
-                      ? 45
-                      : leader.replacementReadiness === "Redo inom 12 månader"
-                        ? 20
-                        : 0)),
-                0
-              ) / filteredLeaders.length
-            )}
-          </strong>
-          <p>Hög kritikalitet kombinerad med låg succession driver upp sårbarheten.</p>
-        </article>
-      </section>
-
-      {(tab === "Översikt" || tab === "Kalibrering") && (
-        <section className="contentGrid">
-          <article className="card tableCard">
-            <div className="sectionHeader">
-              <div>
-                <p className="eyebrow">Kalibrering</p>
-                <h2>Ledningsgruppens talent map</h2>
-              </div>
-              <p className="muted">
-                Klicka på en ledare för att uppdatera score, risk, prioritet och notering.
-              </p>
+      <section className="workbench">
+        <aside className="card rosterPanel">
+          <div className="panelHeader">
+            <div>
+              <p className="panelEyebrow">Roster</p>
+              <h2>Kalibreringskö</h2>
             </div>
+            <span className="smallMeta">{filteredLeaders.length} ledare</span>
+          </div>
 
-            <div className="leaderList">
-              {filteredLeaders.map((leader) => {
-                const score = calculateDensityScore(leader);
-                const tone = getTone(score);
-                return (
-                  <button
-                    key={leader.id}
-                    className={cn(
-                      "leaderRow",
-                      `tone-${tone}`,
-                      selectedLeader?.id === leader.id && "selected"
-                    )}
-                    onClick={() => setSelectedLeaderId(leader.id)}
-                  >
-                    <div>
-                      <strong>{leader.name}</strong>
-                      <span>
-                        {leader.role} · {leader.area}
-                      </span>
-                    </div>
-                    <div className="rowMeta">
-                      <span>
-                        {densityCategory(score)} · {leader.calibrationPriority}
-                      </span>
-                      <strong>{score}</strong>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </article>
+          <div className="rosterList">
+            {filteredLeaders.map((leader) => {
+              const score = calculateDensityScore(leader);
+              return (
+                <button
+                  key={leader.id}
+                  className={cn(
+                    "rosterRow",
+                    `tone-${getTone(score)}`,
+                    selectedLeader?.id === leader.id && "selected"
+                  )}
+                  onClick={() => setSelectedLeaderId(leader.id)}
+                >
+                  <div>
+                    <strong>{leader.name}</strong>
+                    <span>
+                      {leader.role} · {leader.area}
+                    </span>
+                  </div>
+                  <div className="rosterMeta">
+                    <strong>{score}</strong>
+                    <span>{leader.calibrationPriority}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
 
-          {selectedLeader ? (
-            <article className="card profileCard">
-              <div className="sectionHeader">
+        <section className="centerColumn">
+          {tab === "Kalibreringsrum" && selectedLeader ? (
+            <article className="card calibrationPanel">
+              <div className="panelHeader">
                 <div>
-                  <p className="eyebrow">Fördjupning</p>
+                  <p className="panelEyebrow">Aktiv kalibrering</p>
                   <h2>{selectedLeader.name}</h2>
                 </div>
-                <div
-                  className={cn(
-                    "badge",
-                    `tone-${getTone(calculateDensityScore(selectedLeader))}`
-                  )}
-                >
-                  {calculateDensityScore(selectedLeader)} /{" "}
-                  {densityCategory(calculateDensityScore(selectedLeader))}
+                <div className={cn("badge", `tone-${getTone(calculateDensityScore(selectedLeader))}`)}>
+                  {calculateDensityScore(selectedLeader)} · {densityCategory(calculateDensityScore(selectedLeader))}
                 </div>
               </div>
 
-              <div className="profileMeta">
-                <div>
-                  <span>Roll</span>
-                  <strong>{selectedLeader.role}</strong>
-                </div>
-                <div>
-                  <span>Anställningstid</span>
-                  <strong>{selectedLeader.tenureYears} år</strong>
-                </div>
-                <div>
-                  <span>Retention risk</span>
-                  <strong>{selectedLeader.retentionRisk}</strong>
-                </div>
-                <div>
-                  <span>Succession</span>
-                  <strong>{selectedLeader.replacementReadiness}</strong>
-                </div>
-              </div>
-
-              <div className="radarGrid">
-                <ScorePill label="Performance" value={selectedLeader.performance * 20} />
-                <ScorePill label="Potential" value={selectedLeader.potential * 20} />
-                <ScorePill label="Värdepassning" value={selectedLeader.valuesFit} />
-                <ScorePill label="Leadership impact" value={selectedLeader.leadershipImpact} />
-                <ScorePill label="Kritikalitet" value={selectedLeader.businessCriticality} />
+              <div className="decisionStrip">
+                <DecisionStat label="Roll" value={selectedLeader.role} />
+                <DecisionStat label="Retention risk" value={selectedLeader.retentionRisk} />
+                <DecisionStat label="Succession" value={selectedLeader.replacementReadiness} />
+                <DecisionStat label="Senast" value={selectedLeader.lastReviewed} />
               </div>
 
               <div className="editorGrid">
@@ -452,207 +360,228 @@ export function TalentDensityDashboard() {
                 />
               </div>
 
-              <div className="textFieldGroup">
-                <label htmlFor="action-owner">Action owner</label>
-                <input
-                  id="action-owner"
-                  value={selectedLeader.actionOwner}
-                  onChange={(event) =>
-                    updateLeader(selectedLeader.id, { actionOwner: event.target.value })
-                  }
-                />
+              <div className="signalGrid">
+                <ScorePill label="Performance" value={selectedLeader.performance * 20} />
+                <ScorePill label="Potential" value={selectedLeader.potential * 20} />
+                <ScorePill label="Värdepassning" value={selectedLeader.valuesFit} />
+                <ScorePill label="Leadership impact" value={selectedLeader.leadershipImpact} />
+                <ScorePill label="Kritikalitet" value={selectedLeader.businessCriticality} />
+                <ScorePill label="Bench signal" value={selectedLeader.successors * 35} />
               </div>
 
-              <div className="textFieldGroup">
-                <label htmlFor="calibration-note">Kalibreringsnotering</label>
-                <textarea
-                  id="calibration-note"
-                  rows={5}
-                  value={selectedLeader.calibrationNote}
-                  onChange={(event) =>
-                    updateLeader(selectedLeader.id, { calibrationNote: event.target.value })
-                  }
-                  placeholder="Skriv beslut, riskhypotes, ägarskap eller nästa steg."
-                />
+              <div className="notesGrid">
+                <div className="textFieldGroup">
+                  <label htmlFor="action-owner">Beslutsägare</label>
+                  <input
+                    id="action-owner"
+                    value={selectedLeader.actionOwner}
+                    onChange={(event) =>
+                      updateLeader(selectedLeader.id, { actionOwner: event.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="textFieldGroup">
+                  <label htmlFor="calibration-note">Kalibreringsbeslut</label>
+                  <textarea
+                    id="calibration-note"
+                    rows={8}
+                    value={selectedLeader.calibrationNote}
+                    onChange={(event) =>
+                      updateLeader(selectedLeader.id, { calibrationNote: event.target.value })
+                    }
+                    placeholder="Skriv vad ledningsgruppen faktiskt beslutade, vad som måste följas upp och vilket motargument som kvarstår."
+                  />
+                </div>
               </div>
 
-              <div className="twoCol">
-                <div>
-                  <h3>Styrkor</h3>
+              <div className="comparisonGrid">
+                <div className="listPanel">
+                  <h3>Det som talar för</h3>
                   <ul>
                     {selectedLeader.strengths.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
                   </ul>
                 </div>
-                <div>
-                  <h3>Gaps</h3>
+                <div className="listPanel">
+                  <h3>Det som måste adresseras</h3>
                   <ul>
                     {selectedLeader.gaps.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
                   </ul>
                 </div>
-              </div>
-
-              <div>
-                <h3>Rekommenderade actions</h3>
-                <ul>
-                  {selectedLeader.actions.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </article>
-          ) : null}
-        </section>
-      )}
-
-      {(tab === "Översikt" || tab === "9-box") && (
-        <section className="card matrixCard">
-          <div className="sectionHeader">
-            <div>
-              <p className="eyebrow">9-box</p>
-              <h2>Performance × potential</h2>
-            </div>
-            <p className="muted">Varje ruta visar vilka ledare som just nu ligger i respektive cell.</p>
-          </div>
-          <div className="nineBox">
-            {[5, 4, 3, 2, 1].map((potential) =>
-              [1, 2, 3, 4, 5].map((performance) => {
-                const cellLeaders = nineBoxGroups.get(`${performance}-${potential}`) ?? [];
-                return (
-                  <div key={`${performance}-${potential}`} className="nineCell">
-                    <span className="cellLabel">
-                      P{performance} / T{potential}
-                    </span>
-                    {cellLeaders.length === 0 ? (
-                      <em>Tom</em>
-                    ) : (
-                      cellLeaders.map((leader) => (
-                        <button
-                          key={leader.id}
-                          className="miniChip"
-                          onClick={() => {
-                            setSelectedLeaderId(leader.id);
-                            setTab("Kalibrering");
-                          }}
-                        >
-                          {leader.name}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </section>
-      )}
-
-      {(tab === "Översikt" || tab === "Succession") && (
-        <section className="bottomGrid">
-          <article className="card">
-            <div className="sectionHeader">
-              <div>
-                <p className="eyebrow">Risk & succession</p>
-                <h2>Kritiska luckor</h2>
-              </div>
-            </div>
-            <div className="riskMatrix">
-              {successionGaps.map((leader) => (
-                <div key={leader.id} className="riskCell">
-                  <div className={cn("riskDot", leader.retentionRisk === "Hög" && "isHigh")} />
-                  <div>
-                    <strong>{leader.role}</strong>
-                    <span>
-                      {leader.retentionRisk} risk · {leader.replacementReadiness}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="card">
-            <div className="sectionHeader">
-              <div>
-                <p className="eyebrow">Action board</p>
-                <h2>90-dagars prioriteringar</h2>
-              </div>
-            </div>
-            <div className="actionBoard">
-              {actionBoard.map((leader) => (
-                <div key={leader.id} className="actionCard">
-                  <span>{leader.role}</span>
-                  <strong>{leader.name}</strong>
-                  <p>
-                    {leader.retentionRisk === "Hög"
-                      ? "Akut retention- och stabilitetsrisk."
-                      : leader.replacementReadiness === "Ingen ersättare"
-                        ? "Saknar bench för kritisk roll."
-                        : "Behöver riktad utvecklingsinsats för att lyfta density."}
-                  </p>
+                <div className="listPanel">
+                  <h3>Föreslagna nästa steg</h3>
                   <ul>
-                    {leader.actions.slice(0, 2).map((action) => (
-                      <li key={action}>{action}</li>
+                    {selectedLeader.actions.map((item) => (
+                      <li key={item}>{item}</li>
                     ))}
                   </ul>
                 </div>
-              ))}
-            </div>
-          </article>
-        </section>
-      )}
+              </div>
+            </article>
+          ) : null}
 
-      {(tab === "Översikt" || tab === "Actions") && (
-        <section className="card actionTableCard">
-          <div className="sectionHeader">
+          {tab === "9-box" && (
+            <article className="card matrixCard">
+              <div className="panelHeader">
+                <div>
+                  <p className="panelEyebrow">Portfolio mapping</p>
+                  <h2>9-box kalibrering</h2>
+                </div>
+                <span className="smallMeta">Potential lodrätt, performance vågrätt</span>
+              </div>
+              <div className="nineBox">
+                {[5, 4, 3, 2, 1].map((potential) =>
+                  [1, 2, 3, 4, 5].map((performance) => {
+                    const cellLeaders = nineBoxGroups.get(`${performance}-${potential}`) ?? [];
+                    return (
+                      <div key={`${performance}-${potential}`} className="nineCell">
+                        <span className="cellLabel">
+                          P{performance} / T{potential}
+                        </span>
+                        {cellLeaders.length === 0 ? (
+                          <em>Tom</em>
+                        ) : (
+                          cellLeaders.map((leader) => (
+                            <button
+                              key={leader.id}
+                              className="miniChip"
+                              onClick={() => {
+                                setSelectedLeaderId(leader.id);
+                                setTab("Kalibreringsrum");
+                              }}
+                            >
+                              {leader.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </article>
+          )}
+
+          {tab === "Succession" && (
+            <article className="card denseTableCard">
+              <div className="panelHeader">
+                <div>
+                  <p className="panelEyebrow">Critical bench review</p>
+                  <h2>Succession pressure points</h2>
+                </div>
+              </div>
+              <div className="denseTable">
+                {successionGaps.map((leader) => (
+                  <div key={leader.id} className="denseRow">
+                    <div>
+                      <strong>{leader.role}</strong>
+                      <span>{leader.name}</span>
+                    </div>
+                    <div>
+                      <strong>{leader.replacementReadiness}</strong>
+                      <span>Readiness</span>
+                    </div>
+                    <div>
+                      <strong>{leader.retentionRisk}</strong>
+                      <span>Risk</span>
+                    </div>
+                    <div>
+                      <strong>{leader.successors}</strong>
+                      <span>Successors</span>
+                    </div>
+                    <div>
+                      <strong>{leader.actionOwner}</strong>
+                      <span>Owner</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          )}
+
+          {tab === "Actions" && (
+            <article className="card denseTableCard">
+              <div className="panelHeader">
+                <div>
+                  <p className="panelEyebrow">Execution governance</p>
+                  <h2>Prioriterade actions</h2>
+                </div>
+              </div>
+              <div className="denseTable">
+                {topActions.map((leader) => (
+                  <div key={leader.id} className="denseRow">
+                    <div>
+                      <strong>{leader.name}</strong>
+                      <span>{leader.role}</span>
+                    </div>
+                    <div>
+                      <strong>{leader.calibrationPriority}</strong>
+                      <span>Prioritet</span>
+                    </div>
+                    <div>
+                      <strong>{leader.actionStatus}</strong>
+                      <span>Status</span>
+                    </div>
+                    <div>
+                      <strong>{leader.actionOwner}</strong>
+                      <span>Ägare</span>
+                    </div>
+                    <div>
+                      <strong>{leader.lastReviewed}</strong>
+                      <span>Senast uppdaterad</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          )}
+        </section>
+
+        <aside className="card decisionPanel">
+          <div className="panelHeader">
             <div>
-              <p className="eyebrow">Execution</p>
-              <h2>Ägda insatser</h2>
+              <p className="panelEyebrow">Decision rail</p>
+              <h2>Vad rummet måste lösa</h2>
             </div>
-            <p className="muted">Visar vilka åtgärder som bör ägas nu, av vem och om de rör sig framåt.</p>
           </div>
-          <div className="actionTable">
-            {topActions.map((leader) => (
-              <div key={leader.id} className="actionRow">
-                <div>
-                  <strong>{leader.name}</strong>
-                  <span>
-                    {leader.role} · {leader.calibrationPriority}
-                  </span>
-                </div>
-                <div>
-                  <strong>{leader.actionOwner}</strong>
-                  <span>Owner</span>
-                </div>
-                <div>
-                  <strong>{leader.actionStatus}</strong>
-                  <span>Status</span>
-                </div>
-                <div>
-                  <strong>{leader.lastReviewed}</strong>
-                  <span>Senast uppdaterad</span>
-                </div>
+
+          <div className="decisionQueue">
+            {meetingQueue.map((leader) => (
+              <div key={leader.id} className="queueItem">
+                <strong>{leader.role}</strong>
+                <span>
+                  {leader.retentionRisk} risk · {leader.replacementReadiness}
+                </span>
               </div>
             ))}
           </div>
-        </section>
-      )}
-    </main>
-  );
-}
 
-function ScorePill({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="scorePill">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <div className="scoreBar">
-        <div style={{ width: `${value}%` }} />
-      </div>
-    </div>
+          <div className="textFieldGroup">
+            <label htmlFor="session-note">Möteslogg</label>
+            <textarea
+              id="session-note"
+              rows={10}
+              value={sessionNote}
+              onChange={(event) => setSessionNote(event.target.value)}
+              placeholder="Skriv det som behöver kvarstå mellan HR, VD och styrelse: oenigheter, beslut, beroenden och öppna frågor."
+            />
+          </div>
+
+          <div className="listPanel compact">
+            <h3>Kalibreringsprinciper</h3>
+            <ul>
+              <li>Separera faktisk output från framtida potential.</li>
+              <li>Sätt inte låg bench-risk på roller utan namngiven successor.</li>
+              <li>Markera bara “Klar” när ett faktiskt beslut är ägt och tidssatt.</li>
+            </ul>
+          </div>
+        </aside>
+      </section>
+    </main>
   );
 }
 
@@ -677,6 +606,45 @@ function SelectField({
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+function StatusTile({
+  label,
+  value,
+  detail
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <article className="statusTile">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <p>{detail}</p>
+    </article>
+  );
+}
+
+function DecisionStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="decisionStat">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function ScorePill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="scorePill">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <div className="scoreBar">
+        <div style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      </div>
     </div>
   );
 }
