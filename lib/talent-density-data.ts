@@ -2,6 +2,8 @@ export type Performance = 1 | 2 | 3 | 4 | 5;
 export type Potential = 1 | 2 | 3 | 4 | 5;
 export type Readiness = "Redo nu" | "Redo inom 12 månader" | "Redo inom 24 månader" | "Ingen ersättare";
 export type FlightRisk = "Låg" | "Medel" | "Hög";
+export type CalibrationPriority = "Nu" | "Kvartal" | "Bevaka";
+export type ActionStatus = "Ej startad" | "Pågår" | "Klar";
 
 export type Leader = {
   id: string;
@@ -23,7 +25,15 @@ export type Leader = {
   actions: string[];
 };
 
-export const leaders: Leader[] = [
+export type LeaderRecord = Leader & {
+  calibrationNote: string;
+  actionOwner: string;
+  calibrationPriority: CalibrationPriority;
+  actionStatus: ActionStatus;
+  lastReviewed: string;
+};
+
+export const baseLeaders: Leader[] = [
   {
     id: "ceo",
     name: "Anna Berg",
@@ -140,6 +150,31 @@ export const leaders: Leader[] = [
   }
 ];
 
+export const readinessOptions: Readiness[] = [
+  "Redo nu",
+  "Redo inom 12 månader",
+  "Redo inom 24 månader",
+  "Ingen ersättare"
+];
+
+export const flightRiskOptions: FlightRisk[] = ["Låg", "Medel", "Hög"];
+export const priorityOptions: CalibrationPriority[] = ["Nu", "Kvartal", "Bevaka"];
+export const actionStatusOptions: ActionStatus[] = ["Ej startad", "Pågår", "Klar"];
+
+export function createInitialLeaders(): LeaderRecord[] {
+  return baseLeaders.map((leader) => ({
+    ...leader,
+    calibrationNote: "",
+    actionOwner: leader.area === "People" ? "VD" : "CHRO",
+    calibrationPriority:
+      leader.retentionRisk === "Hög" || leader.replacementReadiness === "Ingen ersättare"
+        ? "Nu"
+        : "Kvartal",
+    actionStatus: "Ej startad",
+    lastReviewed: new Date().toISOString().slice(0, 10)
+  }));
+}
+
 const retentionRiskScore: Record<FlightRisk, number> = {
   Låg: 15,
   Medel: 55,
@@ -196,4 +231,37 @@ export function portfolioMetrics(data: Leader[]) {
     readyNowCount,
     noSuccessorCount
   };
+}
+
+export function performanceLabel(value: Performance) {
+  return ["Låg", "Under förväntan", "Solid", "Stark", "Exceptionell"][value - 1];
+}
+
+export function potentialLabel(value: Potential) {
+  return ["Smal", "Växande", "Stabil", "Hög", "Transformativ"][value - 1];
+}
+
+export function exportSnapshot(data: LeaderRecord[]) {
+  return JSON.stringify(
+    {
+      exportedAt: new Date().toISOString(),
+      leaders: data.map((leader) => ({
+        id: leader.id,
+        name: leader.name,
+        role: leader.role,
+        area: leader.area,
+        densityScore: calculateDensityScore(leader),
+        densityCategory: densityCategory(calculateDensityScore(leader)),
+        retentionRisk: leader.retentionRisk,
+        replacementReadiness: leader.replacementReadiness,
+        actionOwner: leader.actionOwner,
+        calibrationPriority: leader.calibrationPriority,
+        actionStatus: leader.actionStatus,
+        calibrationNote: leader.calibrationNote,
+        lastReviewed: leader.lastReviewed
+      }))
+    },
+    null,
+    2
+  );
 }

@@ -36,7 +36,9 @@ body {
 }
 
 button,
-select {
+select,
+input,
+textarea {
   font: inherit;
 }
 
@@ -47,6 +49,7 @@ select {
 }
 
 .hero,
+.tabBar,
 .toolbar,
 .metricsGrid,
 .contentGrid,
@@ -92,6 +95,52 @@ select {
   margin-top: 16px;
 }
 
+.heroActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.primaryButton,
+.ghostButton,
+.tabButton,
+.miniChip {
+  border: none;
+  cursor: pointer;
+  transition: transform 180ms ease, opacity 180ms ease, background 180ms ease;
+}
+
+.primaryButton,
+.ghostButton {
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+}
+
+.primaryButton {
+  background: #2a1a12;
+  color: #fff7ef;
+}
+
+.ghostButton {
+  background: rgba(255, 249, 241, 0.7);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
+.ghostButton.small {
+  height: 40px;
+  padding: 0 14px;
+}
+
+.primaryButton:hover,
+.ghostButton:hover,
+.tabButton:hover,
+.miniChip:hover {
+  transform: translateY(-1px);
+}
+
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -133,9 +182,28 @@ select {
 
 .toolbar {
   display: grid;
-  grid-template-columns: 1fr 1fr repeat(3, 0.7fr);
+  grid-template-columns: 1fr 1fr repeat(3, 0.7fr) auto;
   gap: 14px;
   padding: 18px;
+}
+
+.tabBar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tabButton {
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: rgba(255, 249, 241, 0.65);
+  border: 1px solid var(--line);
+}
+
+.tabButton.active {
+  background: #2a1a12;
+  color: #fff7ef;
 }
 
 .field,
@@ -167,6 +235,12 @@ select {
   border-left: 1px solid var(--line);
 }
 
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .summaryBlock strong {
   font-size: 1.9rem;
 }
@@ -181,7 +255,9 @@ select {
 .metricCard,
 .profileCard,
 .tableCard,
-.bottomGrid .card {
+.bottomGrid .card,
+.matrixCard,
+.actionTableCard {
   padding: 22px;
 }
 
@@ -272,7 +348,10 @@ select {
 .radarGrid,
 .twoCol,
 .riskMatrix,
-.actionBoard {
+.actionBoard,
+.editorGrid,
+.actionTable,
+.nineBox {
   display: grid;
   gap: 12px;
 }
@@ -285,6 +364,34 @@ select {
 .radarGrid {
   grid-template-columns: repeat(2, 1fr);
   margin-bottom: 18px;
+}
+
+.editorGrid {
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 18px;
+}
+
+.textFieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.textFieldGroup label {
+  font-size: 0.84rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.textFieldGroup input,
+.textFieldGroup textarea {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: #fffaf3;
+  padding: 14px;
+  color: var(--text);
 }
 
 .scorePill {
@@ -358,6 +465,64 @@ li {
   grid-template-columns: repeat(2, 1fr);
 }
 
+.actionTable {
+  gap: 10px;
+}
+
+.actionRow {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  background: #fffaf3;
+}
+
+.actionRow span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.matrixCard {
+  margin-bottom: 20px;
+}
+
+.nineBox {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.nineCell {
+  min-height: 132px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: #fffaf3;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cellLabel {
+  font-size: 0.76rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.nineCell em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.miniChip {
+  align-self: flex-start;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text);
+  padding: 7px 10px;
+}
+
 .actionCard span {
   color: var(--accent);
   font-size: 0.8rem;
@@ -393,9 +558,12 @@ li {
   .toolbar,
   .profileMeta,
   .radarGrid,
+  .editorGrid,
   .twoCol,
   .riskMatrix,
-  .actionBoard {
+  .actionBoard,
+  .nineBox,
+  .actionRow {
     grid-template-columns: 1fr;
   }
 
