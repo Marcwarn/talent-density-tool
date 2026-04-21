@@ -1,18 +1,18 @@
 :root {
-  --bg: #0e1318;
-  --bg-soft: #131a20;
-  --panel: #171f27;
-  --panel-2: #1d2731;
+  --bg: #0b0f13;
+  --panel: #12181f;
+  --panel-2: #18212a;
+  --panel-3: #1d2832;
   --line: rgba(255, 255, 255, 0.08);
   --line-strong: rgba(255, 255, 255, 0.14);
-  --text: #eef3f7;
-  --muted: #97a5b4;
-  --accent: #d5b278;
-  --accent-soft: rgba(213, 178, 120, 0.12);
-  --good: #4db087;
-  --warn: #d0a04a;
-  --risk: #d06a6a;
-  --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  --text: #eef4f8;
+  --muted: #93a1b0;
+  --accent: #d6b37a;
+  --accent-soft: rgba(214, 179, 122, 0.14);
+  --good: #4fb288;
+  --warn: #d9a348;
+  --risk: #cd6d6d;
+  --shadow: 0 28px 80px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -25,105 +25,92 @@ html {
 
 body {
   margin: 0;
+  min-height: 100vh;
+  color: var(--text);
   font-family:
     "IBM Plex Sans",
     "Segoe UI",
     Helvetica,
     Arial,
     sans-serif;
-  color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(213, 178, 120, 0.08), transparent 22%),
-    radial-gradient(circle at 85% 10%, rgba(77, 176, 135, 0.07), transparent 18%),
-    linear-gradient(180deg, #0b1015 0%, #111920 100%);
-  min-height: 100vh;
+    radial-gradient(circle at top left, rgba(214, 179, 122, 0.07), transparent 22%),
+    linear-gradient(180deg, #0a0f13 0%, #0f151b 100%);
 }
 
 button,
-select,
 input,
+select,
 textarea {
   font: inherit;
-}
-
-button {
   color: inherit;
 }
 
-textarea,
-input,
-select {
-  color: var(--text);
+button {
+  cursor: pointer;
 }
 
 .execShell {
-  width: min(1600px, calc(100% - 28px));
+  width: min(1680px, calc(100% - 28px));
   margin: 0 auto;
   padding: 18px 0 28px;
 }
 
-.commandBar,
-.statusStrip,
-.controlRail,
-.workbench {
+.topShell,
+.headlineMetrics,
+.filtersBar,
+.boardGrid {
   margin-bottom: 14px;
 }
 
-.commandBar {
+.topShell,
+.panel,
+.metricCard {
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01));
+  box-shadow: var(--shadow);
+}
+
+.topShell {
+  border-radius: 18px;
+  padding: 20px 22px;
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: flex-end;
-  padding: 18px 22px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
-  box-shadow: var(--shadow);
 }
 
-.commandIdentity h1,
-.panelHeader h2 {
-  margin: 0;
-  letter-spacing: -0.035em;
-}
-
-.commandIdentity h1 {
-  font-size: clamp(2rem, 3.5vw, 3.2rem);
-  line-height: 0.96;
-}
-
-.commandEyebrow,
-.panelEyebrow,
-.field label,
-.decisionStat span,
-.statusTile span,
-.smallMeta {
+.kicker,
+.panelKicker,
+.inputField span,
+.metricCard span,
+.summaryCell span {
+  margin: 0 0 8px;
   font-size: 0.74rem;
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--accent);
 }
 
-.commandSubline,
-.statusTile p,
-.smallMeta,
-.rosterRow span,
-.queueItem span,
-.denseRow span,
-.decisionStat span,
-.scorePill span,
-.listPanel li,
-.textFieldGroup textarea::placeholder {
-  color: var(--muted);
+.titleBlock h1,
+.panelHeader h2 {
+  margin: 0;
+  letter-spacing: -0.03em;
 }
 
-.commandSubline {
+.titleBlock h1 {
+  font-size: clamp(2.3rem, 3.8vw, 4rem);
+  line-height: 0.95;
+}
+
+.subtitle {
   margin: 10px 0 0;
-  max-width: 72ch;
-  line-height: 1.5;
+  color: var(--muted);
+  max-width: 68ch;
+  line-height: 1.55;
 }
 
-.commandActions {
+.topActions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
@@ -132,15 +119,12 @@ select {
 .primaryButton,
 .ghostButton,
 .tabButton,
-.miniChip,
-.rosterRow {
-  border: none;
-  cursor: pointer;
+.agendaRow,
+.miniChip {
   transition:
-    transform 160ms ease,
-    background 160ms ease,
-    border-color 160ms ease,
-    opacity 160ms ease;
+    transform 150ms ease,
+    background 150ms ease,
+    border-color 150ms ease;
 }
 
 .primaryButton,
@@ -148,112 +132,107 @@ select {
   height: 44px;
   padding: 0 16px;
   border-radius: 12px;
+  border: 1px solid transparent;
 }
 
 .primaryButton {
   background: var(--accent);
-  color: #1a1712;
+  color: #1b1711;
   font-weight: 700;
 }
 
 .ghostButton {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--line);
+  border-color: var(--line);
 }
 
 .primaryButton:hover,
 .ghostButton:hover,
 .tabButton:hover,
-.miniChip:hover,
-.rosterRow:hover {
+.agendaRow:hover,
+.miniChip:hover {
   transform: translateY(-1px);
 }
 
-.statusStrip {
+.headlineMetrics {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 12px;
 }
 
-.statusTile,
-.card {
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.01));
-  box-shadow: var(--shadow);
-}
-
-.statusTile {
+.metricCard {
   border-radius: 16px;
   padding: 14px 16px;
 }
 
-.statusTile strong {
+.metricCard strong {
   display: block;
-  margin: 8px 0 6px;
+  margin-bottom: 8px;
   font-size: 2rem;
   line-height: 1;
 }
 
-.statusTile p {
+.metricCard p {
   margin: 0;
-  font-size: 0.92rem;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
-.controlRail {
+.filtersBar {
   display: flex;
   justify-content: space-between;
   gap: 14px;
   align-items: center;
 }
 
-.controlCluster {
-  display: flex;
-  gap: 12px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-width: 190px;
-}
-
-.field select,
-.textFieldGroup input,
-.textFieldGroup textarea {
-  width: 100%;
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  border-radius: 12px;
-  padding: 12px 14px;
-}
-
+.filtersGroup,
 .tabBar {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+.inputField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.inputField.fullWidth {
+  min-width: 0;
+}
+
+.inputField input,
+.inputField select,
+.inputField textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-3);
+  padding: 12px 14px;
 }
 
 .tabButton {
   border-radius: 12px;
-  padding: 10px 14px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.03);
+  padding: 10px 14px;
 }
 
 .tabButton.active {
   background: var(--accent-soft);
-  border-color: rgba(213, 178, 120, 0.34);
+  border-color: rgba(214, 179, 122, 0.34);
 }
 
-.workbench {
+.boardGrid {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr) 340px;
+  grid-template-columns: 320px minmax(0, 1fr) 320px;
   gap: 14px;
   align-items: start;
 }
 
-.card {
+.panel {
   border-radius: 18px;
   padding: 18px;
 }
@@ -267,152 +246,152 @@ select {
 }
 
 .panelHeader h2 {
-  font-size: 1.55rem;
+  font-size: 1.5rem;
 }
 
-.rosterList,
-.decisionQueue,
-.denseTable {
+.panelHeader h2 span {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0;
+  margin-top: 6px;
+}
+
+.agendaList,
+.governanceList,
+.tableList {
   display: grid;
   gap: 10px;
 }
 
-.rosterRow {
+.agendaRow {
   width: 100%;
   text-align: left;
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   padding: 14px;
   border-radius: 14px;
-  background: var(--panel-2);
   border: 1px solid transparent;
+  background: var(--panel-2);
 }
 
-.rosterRow.selected {
-  border-color: rgba(213, 178, 120, 0.34);
-  box-shadow: inset 0 0 0 1px rgba(213, 178, 120, 0.12);
+.agendaRow.selected {
+  border-color: rgba(214, 179, 122, 0.35);
 }
 
-.rosterMeta {
+.agendaMeta {
   text-align: right;
 }
 
-.centerColumn {
-  display: grid;
-  gap: 14px;
+.agendaMeta span,
+.governanceItem span,
+.tableRow span,
+.summaryCell span,
+.signalBar span,
+.policyCard li {
+  color: var(--muted);
 }
 
-.decisionStrip,
-.signalGrid,
-.comparisonGrid {
-  display: grid;
-  gap: 10px;
-}
-
-.decisionStrip {
-  grid-template-columns: repeat(4, 1fr);
-  margin-bottom: 14px;
-}
-
-.decisionStat {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--panel-2);
+.signalBadge {
+  border-radius: 999px;
+  padding: 10px 14px;
   border: 1px solid var(--line);
 }
 
-.decisionStat strong,
-.scorePill strong,
-.queueItem strong,
-.listPanel h3,
-.denseRow strong {
+.caseSummary {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.summaryCell,
+.stepCard,
+.policyCard,
+.governanceItem,
+.tableRow {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  border-radius: 14px;
+}
+
+.summaryCell {
+  padding: 12px 14px;
+}
+
+.summaryCell strong,
+.agendaRow strong,
+.governanceItem strong,
+.tableRow strong,
+.signalBar strong {
   display: block;
 }
 
-.editorGrid {
+.stepGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stepCard {
+  padding: 14px;
+}
+
+.stepHeader {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.stepHeader span {
+  color: var(--accent);
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+}
+
+.stepHeader h3,
+.policyCard h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.compactGrid,
+.signalGrid {
+  display: grid;
   gap: 10px;
-  margin-bottom: 14px;
+}
+
+.compactGrid {
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 12px;
 }
 
 .signalGrid {
   grid-template-columns: repeat(3, 1fr);
-  margin-bottom: 14px;
 }
 
-.scorePill {
+.signalBar {
   padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--panel-2);
+  border-radius: 12px;
+  background: var(--panel-3);
   border: 1px solid var(--line);
 }
 
-.scoreBar {
+.signalTrack {
   height: 7px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 999px;
-  overflow: hidden;
   margin-top: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
 }
 
-.scoreBar div {
+.signalTrack div {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), #f3dfaa);
-}
-
-.notesGrid {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.textFieldGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.comparisonGrid {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.listPanel {
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-  border-radius: 14px;
-  padding: 14px;
-}
-
-.listPanel h3 {
-  margin: 0 0 10px;
-  font-size: 1rem;
-}
-
-ul {
-  margin: 0;
-  padding-left: 18px;
-}
-
-li {
-  margin-bottom: 8px;
-  line-height: 1.45;
-}
-
-.queueItem,
-.denseRow {
-  border-radius: 14px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  padding: 14px;
-}
-
-.denseRow {
-  display: grid;
-  grid-template-columns: 1.2fr repeat(4, 1fr);
-  gap: 10px;
+  background: linear-gradient(90deg, var(--accent), #f2dfb4);
 }
 
 .nineBox {
@@ -423,10 +402,10 @@ li {
 
 .nineCell {
   min-height: 132px;
-  padding: 12px;
   border-radius: 14px;
   border: 1px solid var(--line);
   background: var(--panel-2);
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -434,81 +413,109 @@ li {
 
 .cellLabel {
   font-size: 0.74rem;
-  letter-spacing: 0.14em;
   text-transform: uppercase;
+  letter-spacing: 0.14em;
   color: var(--muted);
 }
 
 .nineCell em {
-  font-style: normal;
   color: var(--muted);
+  font-style: normal;
 }
 
 .miniChip {
   align-self: flex-start;
   border-radius: 999px;
-  padding: 7px 10px;
-  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 10px;
 }
 
-.badge {
-  border-radius: 999px;
-  padding: 10px 14px;
-  border: 1px solid var(--line);
+.tableRow,
+.governanceItem,
+.policyCard {
+  padding: 14px;
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(4, 1fr);
+  gap: 10px;
+}
+
+.policyCard ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.policyCard li,
+.subtitle,
+.inputField textarea::placeholder {
+  line-height: 1.5;
 }
 
 .tone-excellent {
-  background: linear-gradient(180deg, rgba(77, 176, 135, 0.14), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, rgba(79, 178, 136, 0.14), rgba(255, 255, 255, 0.03));
 }
 
 .tone-strong {
-  background: linear-gradient(180deg, rgba(213, 178, 120, 0.16), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, rgba(214, 179, 122, 0.15), rgba(255, 255, 255, 0.03));
 }
 
 .tone-watch {
-  background: linear-gradient(180deg, rgba(208, 160, 74, 0.16), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, rgba(217, 163, 72, 0.14), rgba(255, 255, 255, 0.03));
 }
 
 .tone-risk {
-  background: linear-gradient(180deg, rgba(208, 106, 106, 0.16), rgba(255, 255, 255, 0.03));
+  background: linear-gradient(180deg, rgba(205, 109, 109, 0.16), rgba(255, 255, 255, 0.03));
 }
 
-@media (max-width: 1280px) {
-  .workbench {
-    grid-template-columns: 1fr;
+@media (max-width: 1440px) {
+  .headlineMetrics {
+    grid-template-columns: repeat(3, 1fr);
   }
 
-  .statusStrip {
-    grid-template-columns: repeat(2, 1fr);
+  .boardGrid {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+
+  .sideRail {
+    grid-column: 1 / -1;
   }
 }
 
-@media (max-width: 920px) {
-  .commandBar,
-  .controlRail {
+@media (max-width: 1080px) {
+  .topShell,
+  .filtersBar {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .controlCluster,
-  .tabBar {
-    width: 100%;
-  }
-
-  .field {
-    min-width: 0;
-  }
-
-  .decisionStrip,
-  .editorGrid,
+  .boardGrid,
+  .caseSummary,
+  .stepGrid,
+  .compactGrid,
   .signalGrid,
-  .comparisonGrid,
-  .denseRow,
+  .tableRow,
   .nineBox {
     grid-template-columns: 1fr;
   }
 
-  .statusStrip {
+  .headlineMetrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .inputField {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .execShell {
+    width: min(100% - 18px, 1680px);
+  }
+
+  .headlineMetrics {
     grid-template-columns: 1fr;
   }
 }

@@ -1,9 +1,22 @@
 export type Performance = 1 | 2 | 3 | 4 | 5;
 export type Potential = 1 | 2 | 3 | 4 | 5;
-export type Readiness = "Redo nu" | "Redo inom 12 månader" | "Redo inom 24 månader" | "Ingen ersättare";
+export type Readiness =
+  | "Redo nu"
+  | "Redo inom 12 månader"
+  | "Redo inom 24 månader"
+  | "Ingen ersättare";
 export type FlightRisk = "Låg" | "Medel" | "Hög";
 export type CalibrationPriority = "Nu" | "Kvartal" | "Bevaka";
 export type ActionStatus = "Ej startad" | "Pågår" | "Klar";
+export type ConfidenceLevel = "Låg" | "Medel" | "Hög";
+export type DecisionRecommendation =
+  | "Behåll"
+  | "Accelerera"
+  | "De-riska"
+  | "Ersätt"
+  | "Fördjupa bedömning";
+export type DecisionState = "Ej beslutad" | "För beslut" | "Beslutad" | "Eskalerad";
+export type EvidenceState = "Otillräcklig" | "Rimlig" | "Stark";
 
 export type Leader = {
   id: string;
@@ -26,10 +39,17 @@ export type Leader = {
 };
 
 export type LeaderRecord = Leader & {
-  calibrationNote: string;
-  actionOwner: string;
+  evidenceSummary: string;
+  riskNarrative: string;
+  dissentNote: string;
+  decisionOwner: string;
+  executiveRecommendation: DecisionRecommendation;
+  decisionState: DecisionState;
   calibrationPriority: CalibrationPriority;
   actionStatus: ActionStatus;
+  confidence: ConfidenceLevel;
+  evidenceState: EvidenceState;
+  nextReviewDate: string;
   lastReviewed: string;
 };
 
@@ -156,24 +176,24 @@ export const readinessOptions: Readiness[] = [
   "Redo inom 24 månader",
   "Ingen ersättare"
 ];
-
 export const flightRiskOptions: FlightRisk[] = ["Låg", "Medel", "Hög"];
 export const priorityOptions: CalibrationPriority[] = ["Nu", "Kvartal", "Bevaka"];
 export const actionStatusOptions: ActionStatus[] = ["Ej startad", "Pågår", "Klar"];
-
-export function createInitialLeaders(): LeaderRecord[] {
-  return baseLeaders.map((leader) => ({
-    ...leader,
-    calibrationNote: "",
-    actionOwner: leader.area === "People" ? "VD" : "CHRO",
-    calibrationPriority:
-      leader.retentionRisk === "Hög" || leader.replacementReadiness === "Ingen ersättare"
-        ? "Nu"
-        : "Kvartal",
-    actionStatus: "Ej startad",
-    lastReviewed: new Date().toISOString().slice(0, 10)
-  }));
-}
+export const confidenceOptions: ConfidenceLevel[] = ["Låg", "Medel", "Hög"];
+export const decisionRecommendationOptions: DecisionRecommendation[] = [
+  "Behåll",
+  "Accelerera",
+  "De-riska",
+  "Ersätt",
+  "Fördjupa bedömning"
+];
+export const decisionStateOptions: DecisionState[] = [
+  "Ej beslutad",
+  "För beslut",
+  "Beslutad",
+  "Eskalerad"
+];
+export const evidenceStateOptions: EvidenceState[] = ["Otillräcklig", "Rimlig", "Stark"];
 
 const retentionRiskScore: Record<FlightRisk, number> = {
   Låg: 15,
@@ -188,7 +208,71 @@ const readinessScore: Record<Readiness, number> = {
   "Ingen ersättare": 0
 };
 
-export function calculateDensityScore(leader: Leader) {
+const confidenceScore: Record<ConfidenceLevel, number> = {
+  Låg: -12,
+  Medel: 0,
+  Hög: 6
+};
+
+const evidenceScore: Record<EvidenceState, number> = {
+  Otillräcklig: -14,
+  Rimlig: 0,
+  Stark: 8
+};
+
+function isoDateOffset(daysAhead: number) {
+  const now = new Date();
+  now.setDate(now.getDate() + daysAhead);
+  return now.toISOString().slice(0, 10);
+}
+
+function defaultRecommendation(leader: Leader): DecisionRecommendation {
+  if (leader.retentionRisk === "Hög" || leader.replacementReadiness === "Ingen ersättare") {
+    return "De-riska";
+  }
+  if (leader.performance >= 4 && leader.potential >= 4) {
+    return "Accelerera";
+  }
+  return "Behåll";
+}
+
+export function createInitialLeaders(): LeaderRecord[] {
+  return baseLeaders.map((leader) => ({
+    ...leader,
+    evidenceSummary:
+      leader.performance >= 4
+        ? "Tre senaste kvartal visar stabil output, hög intern trovärdighet och tydlig affärseffekt."
+        : "Bilden är blandad mellan operativ leverans, ledarbeteende och långsiktig skalbarhet.",
+    riskNarrative:
+      leader.retentionRisk === "Hög"
+        ? "Kritisk kombination av rollberoende, marknadsexponering och låg bench coverage."
+        : "Ingen akut risk, men beslutet påverkas av succession, kompensation och ledarskalning.",
+    dissentNote:
+      leader.replacementReadiness === "Ingen ersättare"
+        ? "Risk för falsk trygghet om leverans väger tyngre än bench-risk i diskussionen."
+        : "",
+    decisionOwner: leader.area === "People" ? "VD" : "CHRO",
+    executiveRecommendation: defaultRecommendation(leader),
+    decisionState:
+      leader.retentionRisk === "Hög" || leader.replacementReadiness === "Ingen ersättare"
+        ? "För beslut"
+        : "Ej beslutad",
+    calibrationPriority:
+      leader.retentionRisk === "Hög" || leader.replacementReadiness === "Ingen ersättare"
+        ? "Nu"
+        : "Kvartal",
+    actionStatus: "Ej startad",
+    confidence: leader.retentionRisk === "Hög" ? "Medel" : "Hög",
+    evidenceState: leader.performance >= 4 ? "Stark" : "Rimlig",
+    nextReviewDate:
+      leader.retentionRisk === "Hög" || leader.replacementReadiness === "Ingen ersättare"
+        ? isoDateOffset(30)
+        : isoDateOffset(90),
+    lastReviewed: new Date().toISOString().slice(0, 10)
+  }));
+}
+
+export function calculateDensityScore(leader: LeaderRecord | Leader) {
   const weightedScore =
     leader.performance * 16 +
     leader.potential * 12 +
@@ -196,7 +280,9 @@ export function calculateDensityScore(leader: Leader) {
     leader.leadershipImpact * 0.18 +
     leader.businessCriticality * 0.1 +
     readinessScore[leader.replacementReadiness] * 0.08 -
-    retentionRiskScore[leader.retentionRisk] * 0.08;
+    retentionRiskScore[leader.retentionRisk] * 0.08 +
+    ("confidence" in leader ? confidenceScore[leader.confidence] : 0) +
+    ("evidenceState" in leader ? evidenceScore[leader.evidenceState] : 0);
 
   return Math.max(0, Math.min(100, Math.round(weightedScore)));
 }
@@ -208,7 +294,7 @@ export function densityCategory(score: number) {
   return "Riskzon";
 }
 
-export function portfolioMetrics(data: Leader[]) {
+export function portfolioMetrics(data: LeaderRecord[]) {
   const scored = data.map((leader) => ({
     ...leader,
     densityScore: calculateDensityScore(leader)
@@ -216,20 +302,17 @@ export function portfolioMetrics(data: Leader[]) {
 
   const averageDensity =
     scored.reduce((sum, leader) => sum + leader.densityScore, 0) / scored.length;
-  const highRiskCount = scored.filter((leader) => leader.retentionRisk === "Hög").length;
-  const readyNowCount = scored.filter(
-    (leader) => leader.replacementReadiness === "Redo nu"
-  ).length;
-  const noSuccessorCount = scored.filter(
-    (leader) => leader.replacementReadiness === "Ingen ersättare"
-  ).length;
 
   return {
     scored,
     averageDensity: Math.round(averageDensity),
-    highRiskCount,
-    readyNowCount,
-    noSuccessorCount
+    highRiskCount: scored.filter((leader) => leader.retentionRisk === "Hög").length,
+    readyNowCount: scored.filter((leader) => leader.replacementReadiness === "Redo nu").length,
+    noSuccessorCount: scored.filter(
+      (leader) => leader.replacementReadiness === "Ingen ersättare"
+    ).length,
+    decisionsPending: scored.filter((leader) => leader.decisionState !== "Beslutad").length,
+    lowConfidenceCount: scored.filter((leader) => leader.confidence === "Låg").length
   };
 }
 
@@ -241,10 +324,25 @@ export function potentialLabel(value: Potential) {
   return ["Smal", "Växande", "Stabil", "Hög", "Transformativ"][value - 1];
 }
 
-export function exportSnapshot(data: LeaderRecord[]) {
+export function decisionUrgency(leader: LeaderRecord) {
+  if (
+    leader.calibrationPriority === "Nu" ||
+    leader.retentionRisk === "Hög" ||
+    leader.replacementReadiness === "Ingen ersättare"
+  ) {
+    return "Akut";
+  }
+  if (leader.decisionState === "För beslut" || leader.confidence === "Låg") {
+    return "Behöver forumtid";
+  }
+  return "Stabil";
+}
+
+export function exportSnapshot(data: LeaderRecord[], sessionNote: string) {
   return JSON.stringify(
     {
       exportedAt: new Date().toISOString(),
+      sessionNote,
       leaders: data.map((leader) => ({
         id: leader.id,
         name: leader.name,
@@ -252,12 +350,19 @@ export function exportSnapshot(data: LeaderRecord[]) {
         area: leader.area,
         densityScore: calculateDensityScore(leader),
         densityCategory: densityCategory(calculateDensityScore(leader)),
+        executiveRecommendation: leader.executiveRecommendation,
+        decisionState: leader.decisionState,
+        decisionOwner: leader.decisionOwner,
+        confidence: leader.confidence,
+        evidenceState: leader.evidenceState,
         retentionRisk: leader.retentionRisk,
         replacementReadiness: leader.replacementReadiness,
-        actionOwner: leader.actionOwner,
         calibrationPriority: leader.calibrationPriority,
         actionStatus: leader.actionStatus,
-        calibrationNote: leader.calibrationNote,
+        evidenceSummary: leader.evidenceSummary,
+        riskNarrative: leader.riskNarrative,
+        dissentNote: leader.dissentNote,
+        nextReviewDate: leader.nextReviewDate,
         lastReviewed: leader.lastReviewed
       }))
     },

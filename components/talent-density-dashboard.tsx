@@ -4,8 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import {
   actionStatusOptions,
   calculateDensityScore,
+  confidenceOptions,
   createInitialLeaders,
+  decisionRecommendationOptions,
+  decisionStateOptions,
+  decisionUrgency,
   densityCategory,
+  evidenceStateOptions,
   exportSnapshot,
   flightRiskOptions,
   performanceLabel,
@@ -15,6 +20,10 @@ import {
   readinessOptions,
   type ActionStatus,
   type CalibrationPriority,
+  type ConfidenceLevel,
+  type DecisionRecommendation,
+  type DecisionState,
+  type EvidenceState,
   type FlightRisk,
   type LeaderRecord,
   type Performance,
@@ -22,8 +31,8 @@ import {
   type Readiness
 } from "@/lib/talent-density-data";
 
-const STORAGE_KEY = "talent-density-tool.v2";
-const tabs = ["Kalibreringsrum", "9-box", "Succession", "Actions"] as const;
+const STORAGE_KEY = "talent-density-tool.v3";
+const tabs = ["Beslutsrum", "Portföljkarta", "Bench risk", "Åtaganden"] as const;
 
 function cn(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(" ");
@@ -39,44 +48,66 @@ function getTone(score: number) {
 function sortLeaders(data: LeaderRecord[], sortBy: string) {
   const sorted = [...data];
   sorted.sort((a, b) => {
-    const scoreDiff = calculateDensityScore(b) - calculateDensityScore(a);
+    if (sortBy === "decision") {
+      const rank = { Akut: 3, "Behöver forumtid": 2, Stabil: 1 };
+      return rank[decisionUrgency(b)] - rank[decisionUrgency(a)] || calculateDensityScore(a) - calculateDensityScore(b);
+    }
 
     if (sortBy === "risk") {
       const riskRank = { Hög: 3, Medel: 2, Låg: 1 };
-      return riskRank[b.retentionRisk] - riskRank[a.retentionRisk] || scoreDiff;
+      return riskRank[b.retentionRisk] - riskRank[a.retentionRisk] || calculateDensityScore(a) - calculateDensityScore(b);
     }
 
     if (sortBy === "succession") {
-      return a.successors - b.successors || scoreDiff;
+      return a.successors - b.successors || calculateDensityScore(a) - calculateDensityScore(b);
     }
 
-    return scoreDiff;
+    return calculateDensityScore(a) - calculateDensityScore(b);
   });
 
   return sorted;
 }
 
+function normalizeLeaders(raw: unknown) {
+  const defaults = createInitialLeaders();
+  if (!Array.isArray(raw)) {
+    return defaults;
+  }
+
+  return defaults.map((base) => {
+    const stored = raw.find(
+      (candidate): candidate is Partial<LeaderRecord> & { id: string } =>
+        typeof candidate === "object" && candidate !== null && "id" in candidate && candidate.id === base.id
+    );
+
+    return stored
+      ? {
+          ...base,
+          ...stored
+        }
+      : base;
+  });
+}
+
 export function TalentDensityDashboard() {
   const [leaders, setLeaders] = useState<LeaderRecord[]>(() => createInitialLeaders());
-  const [tab, setTab] = useState<(typeof tabs)[number]>("Kalibreringsrum");
+  const [tab, setTab] = useState<(typeof tabs)[number]>("Beslutsrum");
   const [selectedArea, setSelectedArea] = useState("Alla");
-  const [sortBy, setSortBy] = useState("density");
+  const [sortBy, setSortBy] = useState("decision");
   const [selectedLeaderId, setSelectedLeaderId] = useState(createInitialLeaders()[0]?.id ?? "");
   const [sessionNote, setSessionNote] = useState("");
 
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { leaders: LeaderRecord[]; sessionNote?: string };
-        if (Array.isArray(parsed.leaders) && parsed.leaders.length > 0) {
-          setLeaders(parsed.leaders);
-          setSelectedLeaderId(parsed.leaders[0]?.id ?? "");
-          setSessionNote(parsed.sessionNote ?? "");
-        }
-      }
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { leaders?: unknown; sessionNote?: string };
+      const normalized = normalizeLeaders(parsed.leaders);
+      setLeaders(normalized);
+      setSelectedLeaderId(normalized[0]?.id ?? "");
+      setSessionNote(typeof parsed.sessionNote === "string" ? parsed.sessionNote : "");
     } catch {
-      // Ignore corrupted local state and fall back to defaults.
+      // Ignore invalid local cache and use defaults.
     }
   }, []);
 
@@ -104,38 +135,29 @@ export function TalentDensityDashboard() {
   const nineBoxGroups = useMemo(() => {
     const groups = new Map<string, LeaderRecord[]>();
     for (const leader of filteredLeaders) {
-      const key = `${leader.performance}-${leader.potential}`;
-      groups.set(key, [...(groups.get(key) ?? []), leader]);
+      groups.set(`${leader.performance}-${leader.potential}`, [
+        ...(groups.get(`${leader.performance}-${leader.potential}`) ?? []),
+        leader
+      ]);
     }
     return groups;
   }, [filteredLeaders]);
 
-  const successionGaps = filteredLeaders
+  const benchRisks = filteredLeaders.filter(
+    (leader) =>
+      leader.replacementReadiness === "Ingen ersättare" ||
+      leader.retentionRisk === "Hög" ||
+      leader.executiveRecommendation === "Ersätt"
+  );
+
+  const commitments = filteredLeaders
     .filter(
       (leader) =>
-        leader.replacementReadiness === "Ingen ersättare" || leader.retentionRisk === "Hög"
+        leader.decisionState !== "Ej beslutad" || leader.actionStatus !== "Ej startad"
     )
-    .sort((a, b) => calculateDensityScore(a) - calculateDensityScore(b));
+    .sort((a, b) => a.nextReviewDate.localeCompare(b.nextReviewDate));
 
-  const topActions = filteredLeaders
-    .filter((leader) => leader.calibrationPriority !== "Bevaka")
-    .sort((a, b) => {
-      const priorityRank = { Nu: 3, Kvartal: 2, Bevaka: 1 };
-      const statusRank = { "Ej startad": 3, Pågår: 2, Klar: 1 };
-      return (
-        priorityRank[b.calibrationPriority] - priorityRank[a.calibrationPriority] ||
-        statusRank[b.actionStatus] - statusRank[a.actionStatus] ||
-        calculateDensityScore(a) - calculateDensityScore(b)
-      );
-    })
-    .slice(0, 8);
-
-  const meetingQueue = filteredLeaders.filter(
-    (leader) =>
-      leader.calibrationPriority === "Nu" ||
-      leader.retentionRisk === "Hög" ||
-      leader.replacementReadiness === "Ingen ersättare"
-  );
+  const agenda = filteredLeaders.filter((leader) => decisionUrgency(leader) !== "Stabil");
 
   function updateLeader(id: string, patch: Partial<LeaderRecord>) {
     setLeaders((current) =>
@@ -160,55 +182,46 @@ export function TalentDensityDashboard() {
   }
 
   function downloadSnapshot() {
-    const blob = new Blob([exportSnapshot(leaders)], { type: "application/json" });
+    const blob = new Blob([exportSnapshot(leaders, sessionNote)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "talent-density-snapshot.json";
+    anchor.download = "talent-density-board-pack.json";
     anchor.click();
     URL.revokeObjectURL(url);
   }
 
   return (
     <main className="execShell">
-      <section className="commandBar">
-        <div className="commandIdentity">
-          <p className="commandEyebrow">Executive Calibration Console</p>
-          <h1>Talent Density</h1>
-          <p className="commandSubline">
-            Ett kalibreringsrum för ledningsgrupper som måste fatta svåra people-beslut med
-            tempo, disciplin och tydlig ägarsättning.
+      <section className="topShell">
+        <div className="titleBlock">
+          <p className="kicker">Executive People Review System</p>
+          <h1>Talent Density Decision Room</h1>
+          <p className="subtitle">
+            Systemet ska hjälpa rummet att skilja på evidens, tolkning, beslut och uppföljning.
+            Inte bara sätta poäng.
           </p>
         </div>
-
-        <div className="commandActions">
+        <div className="topActions">
           <button className="primaryButton" onClick={downloadSnapshot}>
             Exportera board pack
           </button>
           <button className="ghostButton" onClick={resetLeaders}>
-            Återställ session
+            Återställ
           </button>
         </div>
       </section>
 
-      <section className="statusStrip">
-        <StatusTile label="Portföljscore" value={`${metrics.averageDensity}/100`} detail="Samlad talent density" />
-        <StatusTile label="Akuta luckor" value={String(metrics.noSuccessorCount)} detail="Roller utan ersättare" />
-        <StatusTile label="Hög flight risk" value={String(metrics.highRiskCount)} detail="Måste adresseras i rummet" />
-        <StatusTile
-          label="Bench coverage"
-          value={`${Math.round(
-            (filteredLeaders.filter((leader) => leader.successors > 0).length /
-              filteredLeaders.length) *
-              100
-          )}%`}
-          detail="Roller med minst en kandidat"
-        />
-        <StatusTile label="Redo nu" value={String(metrics.readyNowCount)} detail="Direkt succession" />
+      <section className="headlineMetrics">
+        <MetricCard label="Talent density" value={`${metrics.averageDensity}/100`} detail="Portföljens sammanvägda signal" />
+        <MetricCard label="Pending decisions" value={String(metrics.decisionsPending)} detail="Ännu inte beslutade eller avslutade" />
+        <MetricCard label="Low confidence" value={String(metrics.lowConfidenceCount)} detail="Kräver mer evidens eller benchmark" />
+        <MetricCard label="No successor" value={String(metrics.noSuccessorCount)} detail="Roller med bench-gap" />
+        <MetricCard label="Ready now" value={String(metrics.readyNowCount)} detail="Intern direkt ersättare finns" />
       </section>
 
-      <section className="controlRail">
-        <div className="controlCluster">
+      <section className="filtersBar">
+        <div className="filtersGroup">
           <SelectField
             label="Portfölj"
             value={selectedArea}
@@ -216,12 +229,13 @@ export function TalentDensityDashboard() {
             onChange={setSelectedArea}
           />
           <SelectField
-            label="Sortering"
+            label="Sortera på"
             value={sortBy}
             options={[
-              { value: "density", label: "Talent density" },
+              { value: "decision", label: "Beslutsbrådska" },
               { value: "risk", label: "Retention risk" },
-              { value: "succession", label: "Svagast succession först" }
+              { value: "succession", label: "Svagast bench först" },
+              { value: "density", label: "Lägst density först" }
             ]}
             onChange={setSortBy}
           />
@@ -240,38 +254,40 @@ export function TalentDensityDashboard() {
         </div>
       </section>
 
-      <section className="workbench">
-        <aside className="card rosterPanel">
+      <section className="boardGrid">
+        <aside className="panel agendaPanel">
           <div className="panelHeader">
             <div>
-              <p className="panelEyebrow">Roster</p>
-              <h2>Kalibreringskö</h2>
+              <p className="panelKicker">Agenda</p>
+              <h2>Forumkö</h2>
             </div>
-            <span className="smallMeta">{filteredLeaders.length} ledare</span>
+            <span>{filteredLeaders.length} roller</span>
           </div>
 
-          <div className="rosterList">
+          <div className="agendaList">
             {filteredLeaders.map((leader) => {
               const score = calculateDensityScore(leader);
+              const urgency = decisionUrgency(leader);
               return (
                 <button
                   key={leader.id}
                   className={cn(
-                    "rosterRow",
+                    "agendaRow",
                     `tone-${getTone(score)}`,
                     selectedLeader?.id === leader.id && "selected"
                   )}
-                  onClick={() => setSelectedLeaderId(leader.id)}
+                  onClick={() => {
+                    setSelectedLeaderId(leader.id);
+                    setTab("Beslutsrum");
+                  }}
                 >
                   <div>
-                    <strong>{leader.name}</strong>
-                    <span>
-                      {leader.role} · {leader.area}
-                    </span>
+                    <strong>{leader.role}</strong>
+                    <span>{leader.name}</span>
                   </div>
-                  <div className="rosterMeta">
-                    <strong>{score}</strong>
-                    <span>{leader.calibrationPriority}</span>
+                  <div className="agendaMeta">
+                    <strong>{urgency}</strong>
+                    <span>{leader.executiveRecommendation}</span>
                   </div>
                 </button>
               );
@@ -279,160 +295,224 @@ export function TalentDensityDashboard() {
           </div>
         </aside>
 
-        <section className="centerColumn">
-          {tab === "Kalibreringsrum" && selectedLeader ? (
-            <article className="card calibrationPanel">
+        <section className="mainPanel">
+          {tab === "Beslutsrum" && selectedLeader ? (
+            <article className="panel">
               <div className="panelHeader">
                 <div>
-                  <p className="panelEyebrow">Aktiv kalibrering</p>
-                  <h2>{selectedLeader.name}</h2>
+                  <p className="panelKicker">Active case</p>
+                  <h2>
+                    {selectedLeader.name} <span>{selectedLeader.role}</span>
+                  </h2>
                 </div>
-                <div className={cn("badge", `tone-${getTone(calculateDensityScore(selectedLeader))}`)}>
+                <div className={cn("signalBadge", `tone-${getTone(calculateDensityScore(selectedLeader))}`)}>
                   {calculateDensityScore(selectedLeader)} · {densityCategory(calculateDensityScore(selectedLeader))}
                 </div>
               </div>
 
-              <div className="decisionStrip">
-                <DecisionStat label="Roll" value={selectedLeader.role} />
-                <DecisionStat label="Retention risk" value={selectedLeader.retentionRisk} />
-                <DecisionStat label="Succession" value={selectedLeader.replacementReadiness} />
-                <DecisionStat label="Senast" value={selectedLeader.lastReviewed} />
+              <div className="caseSummary">
+                <SummaryCell label="Urgency" value={decisionUrgency(selectedLeader)} />
+                <SummaryCell label="Decision state" value={selectedLeader.decisionState} />
+                <SummaryCell label="Confidence" value={selectedLeader.confidence} />
+                <SummaryCell label="Evidence" value={selectedLeader.evidenceState} />
+                <SummaryCell label="Retention risk" value={selectedLeader.retentionRisk} />
+                <SummaryCell label="Succession" value={selectedLeader.replacementReadiness} />
               </div>
 
-              <div className="editorGrid">
-                <SelectField
-                  label="Performance"
-                  value={String(selectedLeader.performance)}
-                  options={[1, 2, 3, 4, 5].map((value) => ({
-                    value: String(value),
-                    label: `${value} · ${performanceLabel(value as Performance)}`
-                  }))}
-                  onChange={(value) =>
-                    updateLeader(selectedLeader.id, { performance: Number(value) as Performance })
-                  }
-                />
-                <SelectField
-                  label="Potential"
-                  value={String(selectedLeader.potential)}
-                  options={[1, 2, 3, 4, 5].map((value) => ({
-                    value: String(value),
-                    label: `${value} · ${potentialLabel(value as Potential)}`
-                  }))}
-                  onChange={(value) =>
-                    updateLeader(selectedLeader.id, { potential: Number(value) as Potential })
-                  }
-                />
-                <SelectField
-                  label="Retention risk"
-                  value={selectedLeader.retentionRisk}
-                  options={flightRiskOptions.map((value) => ({ value, label: value }))}
-                  onChange={(value) =>
-                    updateLeader(selectedLeader.id, { retentionRisk: value as FlightRisk })
-                  }
-                />
-                <SelectField
-                  label="Succession"
-                  value={selectedLeader.replacementReadiness}
-                  options={readinessOptions.map((value) => ({ value, label: value }))}
-                  onChange={(value) =>
-                    updateLeader(selectedLeader.id, {
-                      replacementReadiness: value as Readiness
-                    })
-                  }
-                />
-                <SelectField
-                  label="Prioritet"
-                  value={selectedLeader.calibrationPriority}
-                  options={priorityOptions.map((value) => ({ value, label: value }))}
-                  onChange={(value) =>
-                    updateLeader(selectedLeader.id, {
-                      calibrationPriority: value as CalibrationPriority
-                    })
-                  }
-                />
-                <SelectField
-                  label="Status"
-                  value={selectedLeader.actionStatus}
-                  options={actionStatusOptions.map((value) => ({ value, label: value }))}
-                  onChange={(value) =>
-                    updateLeader(selectedLeader.id, { actionStatus: value as ActionStatus })
-                  }
-                />
-              </div>
-
-              <div className="signalGrid">
-                <ScorePill label="Performance" value={selectedLeader.performance * 20} />
-                <ScorePill label="Potential" value={selectedLeader.potential * 20} />
-                <ScorePill label="Värdepassning" value={selectedLeader.valuesFit} />
-                <ScorePill label="Leadership impact" value={selectedLeader.leadershipImpact} />
-                <ScorePill label="Kritikalitet" value={selectedLeader.businessCriticality} />
-                <ScorePill label="Bench signal" value={selectedLeader.successors * 35} />
-              </div>
-
-              <div className="notesGrid">
-                <div className="textFieldGroup">
-                  <label htmlFor="action-owner">Beslutsägare</label>
-                  <input
-                    id="action-owner"
-                    value={selectedLeader.actionOwner}
-                    onChange={(event) =>
-                      updateLeader(selectedLeader.id, { actionOwner: event.target.value })
+              <div className="stepGrid">
+                <section className="stepCard">
+                  <div className="stepHeader">
+                    <span>01</span>
+                    <h3>Evidens</h3>
+                  </div>
+                  <div className="compactGrid">
+                    <SelectField
+                      label="Performance"
+                      value={String(selectedLeader.performance)}
+                      options={[1, 2, 3, 4, 5].map((value) => ({
+                        value: String(value),
+                        label: `${value} · ${performanceLabel(value as Performance)}`
+                      }))}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, { performance: Number(value) as Performance })
+                      }
+                    />
+                    <SelectField
+                      label="Potential"
+                      value={String(selectedLeader.potential)}
+                      options={[1, 2, 3, 4, 5].map((value) => ({
+                        value: String(value),
+                        label: `${value} · ${potentialLabel(value as Potential)}`
+                      }))}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, { potential: Number(value) as Potential })
+                      }
+                    />
+                    <SelectField
+                      label="Evidence strength"
+                      value={selectedLeader.evidenceState}
+                      options={evidenceStateOptions.map((value) => ({ value, label: value }))}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, { evidenceState: value as EvidenceState })
+                      }
+                    />
+                  </div>
+                  <TextAreaField
+                    label="Observed evidence"
+                    value={selectedLeader.evidenceSummary}
+                    placeholder="Vad vet vi faktiskt från output, beteenden, stakeholder-feedback och affärsresultat?"
+                    onChange={(value) =>
+                      updateLeader(selectedLeader.id, { evidenceSummary: value })
                     }
                   />
-                </div>
+                </section>
 
-                <div className="textFieldGroup">
-                  <label htmlFor="calibration-note">Kalibreringsbeslut</label>
-                  <textarea
-                    id="calibration-note"
-                    rows={8}
-                    value={selectedLeader.calibrationNote}
-                    onChange={(event) =>
-                      updateLeader(selectedLeader.id, { calibrationNote: event.target.value })
+                <section className="stepCard">
+                  <div className="stepHeader">
+                    <span>02</span>
+                    <h3>Risk och tolkning</h3>
+                  </div>
+                  <div className="compactGrid">
+                    <SelectField
+                      label="Retention risk"
+                      value={selectedLeader.retentionRisk}
+                      options={flightRiskOptions.map((value) => ({ value, label: value }))}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, { retentionRisk: value as FlightRisk })
+                      }
+                    />
+                    <SelectField
+                      label="Succession"
+                      value={selectedLeader.replacementReadiness}
+                      options={readinessOptions.map((value) => ({ value, label: value }))}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, {
+                          replacementReadiness: value as Readiness
+                        })
+                      }
+                    />
+                    <SelectField
+                      label="Confidence"
+                      value={selectedLeader.confidence}
+                      options={confidenceOptions.map((value) => ({ value, label: value }))}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, { confidence: value as ConfidenceLevel })
+                      }
+                    />
+                  </div>
+                  <TextAreaField
+                    label="Risk narrative"
+                    value={selectedLeader.riskNarrative}
+                    placeholder="Varför är detta ett problem eller en möjlighet för affären, inte bara för individen?"
+                    onChange={(value) =>
+                      updateLeader(selectedLeader.id, { riskNarrative: value })
                     }
-                    placeholder="Skriv vad ledningsgruppen faktiskt beslutade, vad som måste följas upp och vilket motargument som kvarstår."
                   />
-                </div>
-              </div>
+                  <TextAreaField
+                    label="Dissent / unresolved debate"
+                    value={selectedLeader.dissentNote}
+                    placeholder="Vilket motargument, vilken osäkerhet eller vilken konflikt kvarstår i rummet?"
+                    onChange={(value) =>
+                      updateLeader(selectedLeader.id, { dissentNote: value })
+                    }
+                  />
+                </section>
 
-              <div className="comparisonGrid">
-                <div className="listPanel">
-                  <h3>Det som talar för</h3>
-                  <ul>
-                    {selectedLeader.strengths.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="listPanel">
-                  <h3>Det som måste adresseras</h3>
-                  <ul>
-                    {selectedLeader.gaps.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="listPanel">
-                  <h3>Föreslagna nästa steg</h3>
-                  <ul>
-                    {selectedLeader.actions.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
+                <section className="stepCard">
+                  <div className="stepHeader">
+                    <span>03</span>
+                    <h3>Beslut</h3>
+                  </div>
+                  <div className="compactGrid">
+                    <SelectField
+                      label="Recommendation"
+                      value={selectedLeader.executiveRecommendation}
+                      options={decisionRecommendationOptions.map((value) => ({
+                        value,
+                        label: value
+                      }))}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, {
+                          executiveRecommendation: value as DecisionRecommendation
+                        })
+                      }
+                    />
+                    <SelectField
+                      label="Decision state"
+                      value={selectedLeader.decisionState}
+                      options={decisionStateOptions.map((value) => ({ value, label: value }))}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, {
+                          decisionState: value as DecisionState
+                        })
+                      }
+                    />
+                    <SelectField
+                      label="Priority"
+                      value={selectedLeader.calibrationPriority}
+                      options={priorityOptions.map((value) => ({ value, label: value }))}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, {
+                          calibrationPriority: value as CalibrationPriority
+                        })
+                      }
+                    />
+                  </div>
+                </section>
+
+                <section className="stepCard">
+                  <div className="stepHeader">
+                    <span>04</span>
+                    <h3>Uppföljning</h3>
+                  </div>
+                  <div className="compactGrid">
+                    <TextField
+                      label="Decision owner"
+                      value={selectedLeader.decisionOwner}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, { decisionOwner: value })
+                      }
+                    />
+                    <TextField
+                      label="Next review date"
+                      type="date"
+                      value={selectedLeader.nextReviewDate}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, { nextReviewDate: value })
+                      }
+                    />
+                    <SelectField
+                      label="Execution status"
+                      value={selectedLeader.actionStatus}
+                      options={actionStatusOptions.map((value) => ({ value, label: value }))}
+                      onChange={(value) =>
+                        updateLeader(selectedLeader.id, { actionStatus: value as ActionStatus })
+                      }
+                    />
+                  </div>
+
+                  <div className="signalGrid">
+                    <SignalBar label="Performance" value={selectedLeader.performance * 20} />
+                    <SignalBar label="Potential" value={selectedLeader.potential * 20} />
+                    <SignalBar label="Values fit" value={selectedLeader.valuesFit} />
+                    <SignalBar label="Leadership impact" value={selectedLeader.leadershipImpact} />
+                    <SignalBar label="Criticality" value={selectedLeader.businessCriticality} />
+                    <SignalBar label="Bench depth" value={selectedLeader.successors * 35} />
+                  </div>
+                </section>
               </div>
             </article>
           ) : null}
 
-          {tab === "9-box" && (
-            <article className="card matrixCard">
+          {tab === "Portföljkarta" && (
+            <article className="panel">
               <div className="panelHeader">
                 <div>
-                  <p className="panelEyebrow">Portfolio mapping</p>
-                  <h2>9-box kalibrering</h2>
+                  <p className="panelKicker">Portfolio map</p>
+                  <h2>9-box med beslutskontext</h2>
                 </div>
-                <span className="smallMeta">Potential lodrätt, performance vågrätt</span>
               </div>
+
               <div className="nineBox">
                 {[5, 4, 3, 2, 1].map((potential) =>
                   [1, 2, 3, 4, 5].map((performance) => {
@@ -451,7 +531,7 @@ export function TalentDensityDashboard() {
                               className="miniChip"
                               onClick={() => {
                                 setSelectedLeaderId(leader.id);
-                                setTab("Kalibreringsrum");
+                                setTab("Beslutsrum");
                               }}
                             >
                               {leader.name}
@@ -466,36 +546,36 @@ export function TalentDensityDashboard() {
             </article>
           )}
 
-          {tab === "Succession" && (
-            <article className="card denseTableCard">
+          {tab === "Bench risk" && (
+            <article className="panel">
               <div className="panelHeader">
                 <div>
-                  <p className="panelEyebrow">Critical bench review</p>
-                  <h2>Succession pressure points</h2>
+                  <p className="panelKicker">Bench risk review</p>
+                  <h2>Roller som måste de-riskas</h2>
                 </div>
               </div>
-              <div className="denseTable">
-                {successionGaps.map((leader) => (
-                  <div key={leader.id} className="denseRow">
+              <div className="tableList">
+                {benchRisks.map((leader) => (
+                  <div key={leader.id} className="tableRow">
                     <div>
                       <strong>{leader.role}</strong>
                       <span>{leader.name}</span>
                     </div>
                     <div>
-                      <strong>{leader.replacementReadiness}</strong>
-                      <span>Readiness</span>
+                      <strong>{leader.executiveRecommendation}</strong>
+                      <span>Recommendation</span>
                     </div>
                     <div>
                       <strong>{leader.retentionRisk}</strong>
                       <span>Risk</span>
                     </div>
                     <div>
-                      <strong>{leader.successors}</strong>
-                      <span>Successors</span>
+                      <strong>{leader.replacementReadiness}</strong>
+                      <span>Bench</span>
                     </div>
                     <div>
-                      <strong>{leader.actionOwner}</strong>
-                      <span>Owner</span>
+                      <strong>{leader.nextReviewDate}</strong>
+                      <span>Next review</span>
                     </div>
                   </div>
                 ))}
@@ -503,36 +583,36 @@ export function TalentDensityDashboard() {
             </article>
           )}
 
-          {tab === "Actions" && (
-            <article className="card denseTableCard">
+          {tab === "Åtaganden" && (
+            <article className="panel">
               <div className="panelHeader">
                 <div>
-                  <p className="panelEyebrow">Execution governance</p>
-                  <h2>Prioriterade actions</h2>
+                  <p className="panelKicker">Commitments</p>
+                  <h2>Beslut som måste följas upp</h2>
                 </div>
               </div>
-              <div className="denseTable">
-                {topActions.map((leader) => (
-                  <div key={leader.id} className="denseRow">
+              <div className="tableList">
+                {commitments.map((leader) => (
+                  <div key={leader.id} className="tableRow">
                     <div>
                       <strong>{leader.name}</strong>
                       <span>{leader.role}</span>
                     </div>
                     <div>
-                      <strong>{leader.calibrationPriority}</strong>
-                      <span>Prioritet</span>
+                      <strong>{leader.decisionState}</strong>
+                      <span>State</span>
                     </div>
                     <div>
                       <strong>{leader.actionStatus}</strong>
-                      <span>Status</span>
+                      <span>Execution</span>
                     </div>
                     <div>
-                      <strong>{leader.actionOwner}</strong>
-                      <span>Ägare</span>
+                      <strong>{leader.decisionOwner}</strong>
+                      <span>Owner</span>
                     </div>
                     <div>
-                      <strong>{leader.lastReviewed}</strong>
-                      <span>Senast uppdaterad</span>
+                      <strong>{leader.nextReviewDate}</strong>
+                      <span>Review date</span>
                     </div>
                   </div>
                 ))}
@@ -541,44 +621,41 @@ export function TalentDensityDashboard() {
           )}
         </section>
 
-        <aside className="card decisionPanel">
+        <aside className="panel sideRail">
           <div className="panelHeader">
             <div>
-              <p className="panelEyebrow">Decision rail</p>
-              <h2>Vad rummet måste lösa</h2>
+              <p className="panelKicker">Room governance</p>
+              <h2>Vad mötet ska lösa</h2>
             </div>
           </div>
 
-          <div className="decisionQueue">
-            {meetingQueue.map((leader) => (
-              <div key={leader.id} className="queueItem">
+          <div className="governanceList">
+            {agenda.map((leader) => (
+              <div key={leader.id} className="governanceItem">
                 <strong>{leader.role}</strong>
                 <span>
-                  {leader.retentionRisk} risk · {leader.replacementReadiness}
+                  {decisionUrgency(leader)} · {leader.executiveRecommendation}
                 </span>
               </div>
             ))}
           </div>
 
-          <div className="textFieldGroup">
-            <label htmlFor="session-note">Möteslogg</label>
-            <textarea
-              id="session-note"
-              rows={10}
-              value={sessionNote}
-              onChange={(event) => setSessionNote(event.target.value)}
-              placeholder="Skriv det som behöver kvarstå mellan HR, VD och styrelse: oenigheter, beslut, beroenden och öppna frågor."
-            />
-          </div>
-
-          <div className="listPanel compact">
-            <h3>Kalibreringsprinciper</h3>
+          <div className="policyCard">
+            <h3>Kalibreringsregler</h3>
             <ul>
-              <li>Separera faktisk output från framtida potential.</li>
-              <li>Sätt inte låg bench-risk på roller utan namngiven successor.</li>
-              <li>Markera bara “Klar” när ett faktiskt beslut är ägt och tidssatt.</li>
+              <li>Separera observerad evidens från tolkning.</li>
+              <li>Sätt inte “Beslutad” om owner eller review date saknas.</li>
+              <li>Markera låg confidence när rummet inte är överens.</li>
             </ul>
           </div>
+
+          <TextAreaField
+            label="Session log"
+            value={sessionNote}
+            placeholder="Här ska bara det stå som behöver överleva mötet: oenigheter, beslut, ägarskap och datum."
+            onChange={setSessionNote}
+            rows={10}
+          />
         </aside>
       </section>
     </main>
@@ -597,8 +674,8 @@ function SelectField({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="field">
-      <label>{label}</label>
+    <label className="inputField">
+      <span>{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -606,11 +683,56 @@ function SelectField({
           </option>
         ))}
       </select>
-    </div>
+    </label>
   );
 }
 
-function StatusTile({
+function TextField({
+  label,
+  value,
+  onChange,
+  type = "text"
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <label className="inputField">
+      <span>{label}</span>
+      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows = 5
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  rows?: number;
+}) {
+  return (
+    <label className="inputField fullWidth">
+      <span>{label}</span>
+      <textarea
+        rows={rows}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+function MetricCard({
   label,
   value,
   detail
@@ -620,7 +742,7 @@ function StatusTile({
   detail: string;
 }) {
   return (
-    <article className="statusTile">
+    <article className="metricCard">
       <span>{label}</span>
       <strong>{value}</strong>
       <p>{detail}</p>
@@ -628,22 +750,23 @@ function StatusTile({
   );
 }
 
-function DecisionStat({ label, value }: { label: string; value: string }) {
+function SummaryCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="decisionStat">
+    <div className="summaryCell">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
   );
 }
 
-function ScorePill({ label, value }: { label: string; value: number }) {
+function SignalBar({ label, value }: { label: string; value: number }) {
+  const safeValue = Math.max(0, Math.min(100, value));
   return (
-    <div className="scorePill">
+    <div className="signalBar">
       <span>{label}</span>
-      <strong>{value}</strong>
-      <div className="scoreBar">
-        <div style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      <strong>{safeValue}</strong>
+      <div className="signalTrack">
+        <div style={{ width: `${safeValue}%` }} />
       </div>
     </div>
   );
